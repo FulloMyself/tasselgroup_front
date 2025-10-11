@@ -56,9 +56,33 @@ async function apiCall(endpoint, options = {}) {
     }
 }
 
+// Debug function to check all required elements
+function debugElements() {
+    const requiredElements = [
+        'productsContainer',
+        'servicesContainer', 
+        'giftPackagesContainer',
+        'home',
+        'shop',
+        'bookings',
+        'gifts',
+        'login',
+        'profile',
+        'dashboard'
+    ];
+    
+    console.log('🔍 Checking required elements:');
+    requiredElements.forEach(id => {
+        const element = document.getElementById(id);
+        console.log(`${id}:`, element ? '✅ Found' : '❌ Missing');
+    });
+}
+
+
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Initializing Tassel Group Application');
+    debugElements(); // Add this line
     
     // Debug: Check what forms exist
     console.log('Forms check:');

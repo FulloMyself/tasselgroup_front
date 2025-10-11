@@ -78,11 +78,34 @@ function debugElements() {
     });
 }
 
+// Debug function to check API responses
+async function debugAPIResponses() {
+    try {
+        console.log('🔍 Debugging API responses...');
+        
+        const productsResponse = await fetch('https://tasselgroup-back.onrender.com/api/products');
+        const productsData = await productsResponse.json();
+        console.log('Products API response:', productsData);
+        console.log('Products type:', typeof productsData);
+        console.log('Is array:', Array.isArray(productsData));
+        
+        const servicesResponse = await fetch('https://tasselgroup-back.onrender.com/api/services');
+        const servicesData = await servicesResponse.json();
+        console.log('Services API response:', servicesData);
+        console.log('Services type:', typeof servicesData);
+        console.log('Is array:', Array.isArray(servicesData));
+        
+    } catch (error) {
+        console.error('Debug error:', error);
+    }
+}
+
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Initializing Tassel Group Application');
     debugElements(); // Add this line
+    debugAPIResponses();
     
     // Debug: Check what forms exist
     console.log('Forms check:');
@@ -254,41 +277,88 @@ function showSection(sectionId) {
 }
 
 // ===== PRODUCTS & SHOPPING =====
+// ===== PRODUCTS & SHOPPING =====
 async function loadProducts() {
     try {
-        const products = await apiCall('/products');
+        const response = await apiCall('/products');
+        
+        // Handle different response formats
+        let products = [];
+        
+        if (Array.isArray(response)) {
+            // Response is directly an array
+            products = response;
+        } else if (response.products && Array.isArray(response.products)) {
+            // Response is { products: [...] }
+            products = response.products;
+        } else if (response.data && Array.isArray(response.data)) {
+            // Response is { data: [...] }
+            products = response.data;
+        } else {
+            console.warn('Unexpected API response format for products:', response);
+            products = [];
+        }
+        
         const container = document.getElementById('productsContainer');
-
+        
+        // Safe check for container
+        if (!container) {
+            console.warn('⚠️ productsContainer not found in DOM');
+            return;
+        }
+        
         container.innerHTML = '';
-
+        
+        if (products.length === 0) {
+            container.innerHTML = `
+                <div class="col-12 text-center">
+                    <div class="alert alert-info">
+                        No products available at the moment.
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
         products.forEach(product => {
             const productCard = `
-                <div class="col-md-4">
-                    <div class="card">
-                        <img src="${product.image}" class="product-image card-img-top" alt="${product.name}">
-                        <div class="card-body">
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <img src="${product.image || 'https://images.unsplash.com/photo-1556228578-8c89e6adf883?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80'}" 
+                             class="product-image card-img-top" 
+                             alt="${product.name}"
+                             onerror="this.src='https://images.unsplash.com/photo-1556228578-8c89e6adf883?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80'">
+                        <div class="card-body d-flex flex-column">
                             <h5 class="card-title">${product.name}</h5>
-                            <p class="card-text">${product.description}</p>
-                            <p class="card-text"><strong>R ${product.price}</strong></p>
-                            <button class="btn btn-primary" onclick="addToCart('${product._id}', '${product.name}', ${product.price})">Add to Cart</button>
+                            <p class="card-text flex-grow-1">${product.description || 'No description available'}</p>
+                            <p class="card-text"><strong>R ${product.price || 0}</strong></p>
+                            <button class="btn btn-primary mt-auto" onclick="addToCart('${product._id || product.id}', '${(product.name || '').replace(/'/g, "\\'")}', ${product.price || 0})">
+                                Add to Cart
+                            </button>
                         </div>
                     </div>
                 </div>
             `;
             container.innerHTML += productCard;
         });
+        
+        console.log(`✅ Loaded ${products.length} products`);
+        
     } catch (error) {
         console.error('Failed to load products:', error);
         const container = document.getElementById('productsContainer');
-        container.innerHTML = `
-            <div class="col-12 text-center">
-                <div class="alert alert-warning">
-                    Unable to load products: ${error.message}
+        if (container) {
+            container.innerHTML = `
+                <div class="col-12 text-center">
+                    <div class="alert alert-warning">
+                        Unable to load products: ${error.message}
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        }
     }
 }
+
 
 function addToCart(productId, productName, price) {
     if (!currentUser) {
@@ -385,39 +455,80 @@ async function checkout() {
 // ===== SERVICES & BOOKINGS =====
 async function loadServices() {
     try {
-        const services = await apiCall('/services');
+        const response = await apiCall('/services');
+        
+        // Handle different response formats
+        let services = [];
+        
+        if (Array.isArray(response)) {
+            services = response;
+        } else if (response.services && Array.isArray(response.services)) {
+            services = response.services;
+        } else if (response.data && Array.isArray(response.data)) {
+            services = response.data;
+        } else {
+            console.warn('Unexpected API response format for services:', response);
+            services = [];
+        }
+        
         const container = document.getElementById('servicesContainer');
-
+        
+        // Safe check for container
+        if (!container) {
+            console.warn('⚠️ servicesContainer not found in DOM');
+            return;
+        }
+        
         container.innerHTML = '';
-
+        
+        if (services.length === 0) {
+            container.innerHTML = `
+                <div class="col-12 text-center">
+                    <div class="alert alert-info">
+                        No services available at the moment.
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
         services.forEach(service => {
             const serviceCard = `
-                <div class="col-md-6">
-                    <div class="card service-card">
+                <div class="col-md-6 mb-4">
+                    <div class="card service-card h-100">
                         <div class="card-body">
                             <h5 class="card-title">${service.name}</h5>
-                            <p class="card-text">${service.description}</p>
-                            <p class="card-text"><strong>Duration:</strong> ${service.duration}</p>
-                            <p class="card-text"><strong>Price:</strong> R ${service.price}</p>
-                            <button class="btn btn-primary" onclick="bookService('${service._id}', '${service.name}', ${service.price}, '${service.duration}')">Book Now</button>
+                            <p class="card-text">${service.description || 'No description available'}</p>
+                            <p class="card-text"><strong>Duration:</strong> ${service.duration || 'Not specified'}</p>
+                            <p class="card-text"><strong>Price:</strong> R ${service.price || 0}</p>
+                            <button class="btn btn-primary" 
+                                    onclick="bookService('${service._id || service.id}', '${(service.name || '').replace(/'/g, "\\'")}', ${service.price || 0}, '${service.duration || ''}')">
+                                Book Now
+                            </button>
                         </div>
                     </div>
                 </div>
             `;
             container.innerHTML += serviceCard;
         });
+        
+        console.log(`✅ Loaded ${services.length} services`);
+        
     } catch (error) {
         console.error('Failed to load services:', error);
         const container = document.getElementById('servicesContainer');
-        container.innerHTML = `
-            <div class="col-12 text-center">
-                <div class="alert alert-warning">
-                    Unable to load services: ${error.message}
+        if (container) {
+            container.innerHTML = `
+                <div class="col-12 text-center">
+                    <div class="alert alert-warning">
+                        Unable to load services: ${error.message}
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        }
     }
 }
+
 
 function bookService(serviceId, serviceName, price, duration) {
     if (!currentUser) {
@@ -466,41 +577,88 @@ async function confirmBooking(e) {
 // ===== GIFT PACKAGES =====
 async function loadGiftPackages() {
     try {
-        const giftPackages = await apiCall('/gift-packages');
+        const response = await apiCall('/gift-packages');
+        
+        // Handle different response formats
+        let giftPackages = [];
+        
+        if (Array.isArray(response)) {
+            giftPackages = response;
+        } else if (response.giftPackages && Array.isArray(response.giftPackages)) {
+            giftPackages = response.giftPackages;
+        } else if (response.data && Array.isArray(response.data)) {
+            giftPackages = response.data;
+        } else {
+            console.warn('Unexpected API response format for gift packages:', response);
+            giftPackages = [];
+        }
+        
         const container = document.getElementById('giftPackagesContainer');
-
+        
+        // Safe check for container
+        if (!container) {
+            console.warn('⚠️ giftPackagesContainer not found in DOM');
+            return;
+        }
+        
         container.innerHTML = '';
-
+        
+        if (giftPackages.length === 0) {
+            container.innerHTML = `
+                <div class="col-12 text-center">
+                    <div class="alert alert-info">
+                        No gift packages available at the moment.
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
         giftPackages.forEach(gift => {
+            const includesList = Array.isArray(gift.includes) 
+                ? gift.includes.map(item => `<li>${item}</li>`).join('')
+                : '<li>No details available</li>';
+                
             const giftCard = `
-                <div class="col-md-4">
-                    <div class="card">
-                        <img src="${gift.image}" class="product-image card-img-top" alt="${gift.name}">
-                        <div class="card-body">
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <img src="${gift.image || 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80'}" 
+                             class="product-image card-img-top" 
+                             alt="${gift.name}"
+                             onerror="this.src='https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80'">
+                        <div class="card-body d-flex flex-column">
                             <h5 class="card-title">${gift.name}</h5>
-                            <p class="card-text">${gift.description}</p>
+                            <p class="card-text flex-grow-1">${gift.description || 'No description available'}</p>
                             <p class="card-text"><strong>Includes:</strong></p>
-                            <ul>
-                                ${gift.includes.map(item => `<li>${item}</li>`).join('')}
+                            <ul class="flex-grow-1">
+                                ${includesList}
                             </ul>
-                            <p class="card-text"><strong>From R ${gift.basePrice}</strong></p>
-                            <button class="btn btn-primary" onclick="customizeGift('${gift._id}', '${gift.name}')">Customize Gift</button>
+                            <p class="card-text"><strong>From R ${gift.basePrice || gift.price || 0}</strong></p>
+                            <button class="btn btn-primary mt-auto" 
+                                    onclick="customizeGift('${gift._id || gift.id}', '${(gift.name || '').replace(/'/g, "\\'")}')">
+                                Customize Gift
+                            </button>
                         </div>
                     </div>
                 </div>
             `;
             container.innerHTML += giftCard;
         });
+        
+        console.log(`✅ Loaded ${giftPackages.length} gift packages`);
+        
     } catch (error) {
         console.error('Failed to load gift packages:', error);
         const container = document.getElementById('giftPackagesContainer');
-        container.innerHTML = `
-            <div class="col-12 text-center">
-                <div class="alert alert-warning">
-                    Unable to load gift packages: ${error.message}
+        if (container) {
+            container.innerHTML = `
+                <div class="col-12 text-center">
+                    <div class="alert alert-warning">
+                        Unable to load gift packages: ${error.message}
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        }
     }
 }
 

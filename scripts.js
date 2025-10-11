@@ -57,69 +57,62 @@ async function apiCall(endpoint, options = {}) {
 }
 
 // ===== INITIALIZATION =====
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Initializing Tassel Group Application');
-
+    
+    // Debug: Check what forms exist
+    console.log('Forms check:');
+    console.log('Login form:', document.getElementById('loginFormElement'));
+    console.log('Register form:', document.getElementById('registerFormElement'));
+    console.log('Profile form:', document.getElementById('profileForm'));
+    console.log('Password form:', document.getElementById('passwordForm'));
+    console.log('Booking form:', document.getElementById('bookingDetailsForm'));
+    console.log('Gift form:', document.getElementById('giftCustomizationForm'));
+    
     // Check if user is already logged in
     const token = localStorage.getItem('token');
     if (token) {
         fetchCurrentUser();
     }
-
-    // Safely set up form submissions with null checks
-    setupFormEventListeners();
-
-    // Set minimum date for booking to today
-    const today = new Date().toISOString().split('T')[0];
-    const bookingDate = document.getElementById('bookingDate');
-    const deliveryDate = document.getElementById('deliveryDate');
-
-    if (bookingDate) bookingDate.min = today;
-    if (deliveryDate) deliveryDate.min = today;
-
+    
+    // Safe form setup
+    safeFormSetup();
+    
+    // Set minimum dates
+    setMinimumDates();
+    
     // Load initial data
     loadProducts();
     loadServices();
     loadGiftPackages();
 });
 
-// Safely set up form event listeners
-function setupFormEventListeners() {
-    const forms = {
-        loginForm: document.getElementById('loginFormElement'),
-        registerForm: document.getElementById('registerFormElement'),
-        profileForm: document.getElementById('profileForm'),
-        passwordForm: document.getElementById('passwordForm'),
-        bookingForm: document.getElementById('bookingDetailsForm'),
-        giftForm: document.getElementById('giftCustomizationForm')
-    };
-
+function safeFormSetup() {
     // Only add listeners if forms exist
-    if (forms.loginForm) {
-        forms.loginForm.addEventListener('submit', handleLogin);
-    }
+    const loginForm = document.getElementById('loginFormElement');
+    const registerForm = document.getElementById('registerFormElement');
+    const profileForm = document.getElementById('profileForm');
+    const passwordForm = document.getElementById('passwordForm');
+    const bookingForm = document.getElementById('bookingDetailsForm');
+    const giftForm = document.getElementById('giftCustomizationForm');
+    
+    if (loginForm) loginForm.addEventListener('submit', (e) => { e.preventDefault(); handleLogin(e); });
+    if (registerForm) registerForm.addEventListener('submit', (e) => { e.preventDefault(); handleRegister(e); });
+    if (profileForm) profileForm.addEventListener('submit', (e) => { e.preventDefault(); updateProfile(e); });
+    if (passwordForm) passwordForm.addEventListener('submit', (e) => { e.preventDefault(); changePassword(e); });
+    if (bookingForm) bookingForm.addEventListener('submit', (e) => { e.preventDefault(); confirmBooking(e); });
+    if (giftForm) giftForm.addEventListener('submit', (e) => { e.preventDefault(); createGift(e); });
+    
+    console.log('Form setup completed');
+}
 
-    if (forms.registerForm) {
-        forms.registerForm.addEventListener('submit', handleRegister);
-    }
-
-    if (forms.profileForm) {
-        forms.profileForm.addEventListener('submit', updateProfile);
-    }
-
-    if (forms.passwordForm) {
-        forms.passwordForm.addEventListener('submit', changePassword);
-    }
-
-    if (forms.bookingForm) {
-        forms.bookingForm.addEventListener('submit', confirmBooking);
-    }
-
-    if (forms.giftForm) {
-        forms.giftForm.addEventListener('submit', createGift);
-    }
-
-    console.log('Form event listeners setup completed');
+function setMinimumDates() {
+    const today = new Date().toISOString().split('T')[0];
+    const bookingDate = document.getElementById('bookingDate');
+    const deliveryDate = document.getElementById('deliveryDate');
+    
+    if (bookingDate) bookingDate.min = today;
+    if (deliveryDate) deliveryDate.min = today;
 }
 
 // ===== AUTHENTICATION FUNCTIONS =====

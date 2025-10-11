@@ -42,14 +42,14 @@ async function apiCall(endpoint, options = {}) {
     try {
         console.log(`📡 Making API call to: ${API_BASE}${endpoint}`);
         const response = await fetch(`${API_BASE}${endpoint}`, config);
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         return data;
-        
+
     } catch (error) {
         console.error(`❌ API call failed: ${error.message}`);
         throw error;
@@ -57,33 +57,70 @@ async function apiCall(endpoint, options = {}) {
 }
 
 // ===== INITIALIZATION =====
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     console.log('🚀 Initializing Tassel Group Application');
-    
+
     // Check if user is already logged in
     const token = localStorage.getItem('token');
     if (token) {
         fetchCurrentUser();
     }
-    
-    // Set up form submissions
-    document.getElementById('loginFormElement').addEventListener('submit', handleLogin);
-    document.getElementById('registerFormElement').addEventListener('submit', handleRegister);
-    document.getElementById('profileForm').addEventListener('submit', updateProfile);
-    document.getElementById('passwordForm').addEventListener('submit', changePassword);
-    document.getElementById('bookingDetailsForm').addEventListener('submit', confirmBooking);
-    document.getElementById('giftCustomizationForm').addEventListener('submit', createGift);
-    
+
+    // Safely set up form submissions with null checks
+    setupFormEventListeners();
+
     // Set minimum date for booking to today
     const today = new Date().toISOString().split('T')[0];
-    document.getElementById('bookingDate').min = today;
-    document.getElementById('deliveryDate').min = today;
-    
+    const bookingDate = document.getElementById('bookingDate');
+    const deliveryDate = document.getElementById('deliveryDate');
+
+    if (bookingDate) bookingDate.min = today;
+    if (deliveryDate) deliveryDate.min = today;
+
     // Load initial data
     loadProducts();
     loadServices();
     loadGiftPackages();
 });
+
+// Safely set up form event listeners
+function setupFormEventListeners() {
+    const forms = {
+        loginForm: document.getElementById('loginFormElement'),
+        registerForm: document.getElementById('registerFormElement'),
+        profileForm: document.getElementById('profileForm'),
+        passwordForm: document.getElementById('passwordForm'),
+        bookingForm: document.getElementById('bookingDetailsForm'),
+        giftForm: document.getElementById('giftCustomizationForm')
+    };
+
+    // Only add listeners if forms exist
+    if (forms.loginForm) {
+        forms.loginForm.addEventListener('submit', handleLogin);
+    }
+
+    if (forms.registerForm) {
+        forms.registerForm.addEventListener('submit', handleRegister);
+    }
+
+    if (forms.profileForm) {
+        forms.profileForm.addEventListener('submit', updateProfile);
+    }
+
+    if (forms.passwordForm) {
+        forms.passwordForm.addEventListener('submit', changePassword);
+    }
+
+    if (forms.bookingForm) {
+        forms.bookingForm.addEventListener('submit', confirmBooking);
+    }
+
+    if (forms.giftForm) {
+        forms.giftForm.addEventListener('submit', createGift);
+    }
+
+    console.log('Form event listeners setup completed');
+}
 
 // ===== AUTHENTICATION FUNCTIONS =====
 async function fetchCurrentUser() {
@@ -99,21 +136,21 @@ async function fetchCurrentUser() {
 
 async function handleLogin(e) {
     e.preventDefault();
-    
+
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
-    
+
     try {
         const data = await apiCall('/auth/login', {
             method: 'POST',
             body: JSON.stringify({ email, password })
         });
-        
+
         localStorage.setItem('token', data.token);
         currentUser = data.user;
         updateUIForUser();
         showSection('home');
-        
+
         document.getElementById('loginFormElement').reset();
         alert('Login successful!');
     } catch (error) {
@@ -123,24 +160,24 @@ async function handleLogin(e) {
 
 async function handleRegister(e) {
     e.preventDefault();
-    
+
     const name = document.getElementById('registerName').value;
     const email = document.getElementById('registerEmail').value;
     const password = document.getElementById('registerPassword').value;
     const phone = document.getElementById('registerPhone').value;
     const address = document.getElementById('registerAddress').value;
-    
+
     try {
         const data = await apiCall('/auth/register', {
             method: 'POST',
             body: JSON.stringify({ name, email, password, phone, address })
         });
-        
+
         localStorage.setItem('token', data.token);
         currentUser = data.user;
         updateUIForUser();
         showSection('home');
-        
+
         document.getElementById('registerFormElement').reset();
         alert('Registration successful!');
     } catch (error) {
@@ -152,20 +189,20 @@ function updateUIForUser() {
     if (currentUser) {
         document.getElementById('userDropdown').style.display = 'block';
         document.getElementById('loginLink').style.display = 'none';
-        
+
         document.getElementById('userName').textContent = currentUser.name;
         document.getElementById('userAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
-        
+
         if (currentUser.role === 'staff' || currentUser.role === 'admin') {
             document.getElementById('dashboardLink').style.display = 'block';
         }
-        
+
         // Update profile section
         document.getElementById('profileName').textContent = currentUser.name;
         document.getElementById('profileEmail').textContent = currentUser.email;
         document.getElementById('profileRole').textContent = currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1);
         document.getElementById('profileAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
-        
+
         document.getElementById('profileFullName').value = currentUser.name;
         document.getElementById('profileEmailInput').value = currentUser.email;
         document.getElementById('profilePhone').value = currentUser.phone;
@@ -189,13 +226,13 @@ function showSection(sectionId) {
     document.querySelectorAll('.content-section').forEach(section => {
         section.style.display = 'none';
     });
-    
+
     document.getElementById(sectionId).style.display = 'block';
-    
+
     if (sectionId === 'dashboard' && currentUser) {
         loadDashboard();
     }
-    
+
     window.scrollTo(0, 0);
 }
 
@@ -204,9 +241,9 @@ async function loadProducts() {
     try {
         const products = await apiCall('/products');
         const container = document.getElementById('productsContainer');
-        
+
         container.innerHTML = '';
-        
+
         products.forEach(product => {
             const productCard = `
                 <div class="col-md-4">
@@ -242,7 +279,7 @@ function addToCart(productId, productName, price) {
         showSection('login');
         return;
     }
-    
+
     cart.push({ productId, name: productName, price, quantity: 1 });
     updateCartDisplay();
     document.getElementById('cartSection').style.display = 'block';
@@ -252,12 +289,12 @@ function addToCart(productId, productName, price) {
 function updateCartDisplay() {
     const cartItems = document.getElementById('cartItems');
     cartItems.innerHTML = '';
-    
+
     if (cart.length === 0) {
         cartItems.innerHTML = '<p>Your cart is empty</p>';
         return;
     }
-    
+
     let total = 0;
     cart.forEach((item, index) => {
         total += item.price * item.quantity;
@@ -272,7 +309,7 @@ function updateCartDisplay() {
             </div>
         `;
     });
-    
+
     cartItems.innerHTML += `
         <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
             <strong>Total</strong>
@@ -284,7 +321,7 @@ function updateCartDisplay() {
 function removeFromCart(index) {
     cart.splice(index, 1);
     updateCartDisplay();
-    
+
     if (cart.length === 0) {
         document.getElementById('cartSection').style.display = 'none';
     }
@@ -295,13 +332,13 @@ async function checkout() {
         alert('Your cart is empty');
         return;
     }
-    
+
     if (!currentUser) {
         alert('Please log in to checkout');
         showSection('login');
         return;
     }
-    
+
     try {
         const orderData = {
             items: cart.map(item => ({
@@ -312,16 +349,16 @@ async function checkout() {
             shippingAddress: currentUser.address,
             paymentMethod: 'card'
         };
-        
+
         await apiCall('/orders', {
             method: 'POST',
             body: JSON.stringify(orderData)
         });
-        
+
         cart = [];
         updateCartDisplay();
         document.getElementById('cartSection').style.display = 'none';
-        
+
         alert('Order placed successfully! Thank you for your purchase.');
     } catch (error) {
         alert('Failed to place order: ' + error.message);
@@ -333,9 +370,9 @@ async function loadServices() {
     try {
         const services = await apiCall('/services');
         const container = document.getElementById('servicesContainer');
-        
+
         container.innerHTML = '';
-        
+
         services.forEach(service => {
             const serviceCard = `
                 <div class="col-md-6">
@@ -371,21 +408,21 @@ function bookService(serviceId, serviceName, price, duration) {
         showSection('login');
         return;
     }
-    
+
     currentBooking = { serviceId, name: serviceName, price, duration };
     document.getElementById('serviceName').value = serviceName;
     document.getElementById('bookingForm').style.display = 'block';
-    
+
     document.getElementById('bookingForm').scrollIntoView({ behavior: 'smooth' });
 }
 
 async function confirmBooking(e) {
     e.preventDefault();
-    
+
     const date = document.getElementById('bookingDate').value;
     const time = document.getElementById('bookingTime').value;
     const specialRequests = document.getElementById('specialRequests').value;
-    
+
     try {
         const bookingData = {
             service: currentBooking.serviceId,
@@ -393,16 +430,16 @@ async function confirmBooking(e) {
             time,
             specialRequests
         };
-        
+
         await apiCall('/bookings', {
             method: 'POST',
             body: JSON.stringify(bookingData)
         });
-        
+
         document.getElementById('bookingDetailsForm').reset();
         document.getElementById('bookingForm').style.display = 'none';
         currentBooking = null;
-        
+
         alert('Booking confirmed! We look forward to seeing you.');
     } catch (error) {
         alert('Failed to create booking: ' + error.message);
@@ -414,9 +451,9 @@ async function loadGiftPackages() {
     try {
         const giftPackages = await apiCall('/gift-packages');
         const container = document.getElementById('giftPackagesContainer');
-        
+
         container.innerHTML = '';
-        
+
         giftPackages.forEach(gift => {
             const giftCard = `
                 <div class="col-md-4">
@@ -456,24 +493,24 @@ function customizeGift(giftId, giftName) {
         showSection('login');
         return;
     }
-    
+
     currentGift = { giftId, name: giftName };
     document.getElementById('giftPackage').value = giftName;
     document.getElementById('giftCustomization').style.display = 'block';
-    
+
     document.getElementById('giftCustomization').scrollIntoView({ behavior: 'smooth' });
 }
 
 async function createGift(e) {
     e.preventDefault();
-    
+
     const recipientName = document.getElementById('recipientName').value;
     const recipientEmail = document.getElementById('recipientEmail').value;
     const giftMessage = document.getElementById('giftMessage').value;
     const deliveryDate = document.getElementById('deliveryDate').value;
-    
+
     alert(`Gift package created for ${recipientName}! An email will be sent to ${recipientEmail} with the gift details.`);
-    
+
     document.getElementById('giftCustomizationForm').reset();
     document.getElementById('giftCustomization').style.display = 'none';
     currentGift = null;
@@ -482,22 +519,22 @@ async function createGift(e) {
 // ===== PROFILE MANAGEMENT =====
 async function updateProfile(e) {
     e.preventDefault();
-    
+
     const name = document.getElementById('profileFullName').value;
     const email = document.getElementById('profileEmailInput').value;
     const phone = document.getElementById('profilePhone').value;
     const address = document.getElementById('profileAddress').value;
-    
+
     try {
         await apiCall('/users/profile', {
             method: 'PUT',
             body: JSON.stringify({ name, email, phone, address })
         });
-        
+
         currentUser = { ...currentUser, name, email, phone, address };
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
         updateUIForUser();
-        
+
         alert('Profile updated successfully!');
     } catch (error) {
         alert(error.message);
@@ -506,22 +543,22 @@ async function updateProfile(e) {
 
 async function changePassword(e) {
     e.preventDefault();
-    
+
     const currentPassword = document.getElementById('currentPassword').value;
     const newPassword = document.getElementById('newPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
-    
+
     if (newPassword !== confirmPassword) {
         alert('New passwords do not match');
         return;
     }
-    
+
     try {
         await apiCall('/users/change-password', {
             method: 'PUT',
             body: JSON.stringify({ currentPassword, newPassword })
         });
-        
+
         document.getElementById('passwordForm').reset();
         alert('Password changed successfully!');
     } catch (error) {
@@ -545,14 +582,14 @@ async function loadDashboard() {
 async function loadStaffDashboard() {
     try {
         const data = await apiCall('/dashboard/staff');
-        
+
         document.getElementById('staffSales').textContent = data.stats.totalSales;
         document.getElementById('staffClients').textContent = data.stats.totalClients;
         document.getElementById('staffHours').textContent = data.stats.totalHours;
         document.getElementById('staffCommission').textContent = 'R ' + data.stats.totalCommission;
-        
+
         // Load appointments, sales, vouchers... (add your existing dashboard code here)
-        
+
     } catch (error) {
         console.error('Failed to load staff dashboard:', error);
     }
@@ -561,14 +598,14 @@ async function loadStaffDashboard() {
 async function loadAdminDashboard() {
     try {
         const data = await apiCall('/dashboard/admin');
-        
+
         document.getElementById('totalUsers').textContent = data.stats.totalUsers;
         document.getElementById('totalBookings').textContent = data.stats.totalBookings;
         document.getElementById('totalProducts').textContent = data.stats.totalProducts;
         document.getElementById('totalRevenue').textContent = 'R ' + data.stats.totalRevenue;
-        
+
         // Load charts and recent activity... (add your existing dashboard code here)
-        
+
     } catch (error) {
         console.error('Failed to load admin dashboard:', error);
     }

@@ -277,6 +277,7 @@ async function loadProducts() {
     }
 }
 
+// ===== UPDATED CART & CHECKOUT FUNCTIONS =====
 function addToCart(productId, productName, price) {
     if (!currentUser) {
         alert('Please log in to add items to your cart');
@@ -294,26 +295,61 @@ function addToCart(productId, productName, price) {
 
     updateCartDisplay();
     document.getElementById('cartSection').style.display = 'block';
+    
+    // Load staff dropdown when cart becomes visible
+    if (cart.length === 1) { // Only load once when first item is added
+        populateCartStaffDropdown();
+    }
+    
     alert(`${productName} added to cart!`);
+}
+
+// Load staff dropdown specifically for cart
+async function populateCartStaffDropdown() {
+    try {
+        const staffMembers = await loadStaffMembers();
+        const cartStaffDropdown = document.getElementById('cartStaff');
+        
+        if (cartStaffDropdown && staffMembers.length > 0) {
+            // Clear existing options except the first one
+            while (cartStaffDropdown.options.length > 1) {
+                cartStaffDropdown.remove(1);
+            }
+            
+            // Add staff options
+            staffMembers.forEach(staff => {
+                const option = document.createElement('option');
+                option.value = staff._id;
+                option.textContent = `${staff.name} (${staff.role})`;
+                cartStaffDropdown.appendChild(option);
+            });
+            
+            console.log(`✅ Loaded ${staffMembers.length} staff members for cart`);
+        }
+    } catch (error) {
+        console.error('Failed to populate cart staff dropdown:', error);
+    }
 }
 
 function updateCartDisplay() {
     const cartItems = document.getElementById('cartItems');
     const cartSection = document.getElementById('cartSection');
-
+    const cartStaffSection = document.getElementById('cartStaffSection');
+    
     if (!cartItems || !cartSection) {
         console.warn('Cart elements not found in DOM');
         return;
     }
-
+    
     cartItems.innerHTML = '';
-
+    
     if (cart.length === 0) {
         cartItems.innerHTML = '<p>Your cart is empty</p>';
         cartSection.style.display = 'none';
+        if (cartStaffSection) cartStaffSection.style.display = 'none';
         return;
     }
-
+    
     let total = 0;
     cart.forEach((item, index) => {
         const itemTotal = item.price * item.quantity;
@@ -337,15 +373,16 @@ function updateCartDisplay() {
             </div>
         `;
     });
-
+    
     cartItems.innerHTML += `
         <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
             <strong>Total</strong>
             <strong>R ${total}</strong>
         </div>
     `;
-
+    
     cartSection.style.display = 'block';
+    if (cartStaffSection) cartStaffSection.style.display = 'block';
 }
 
 function updateCartQuantity(index, change) {
@@ -365,6 +402,8 @@ function removeFromCart(index) {
 
     if (cart.length === 0) {
         document.getElementById('cartSection').style.display = 'none';
+        const cartStaffSection = document.getElementById('cartStaffSection');
+        if (cartStaffSection) cartStaffSection.style.display = 'none';
     }
 }
 
@@ -381,16 +420,9 @@ async function checkout() {
     }
 
     try {
-        // Show staff selection for checkout
-        await populateStaffDropdowns();
-        const checkoutStaffSection = document.getElementById('checkoutStaffSection');
-        if (checkoutStaffSection) {
-            checkoutStaffSection.style.display = 'block';
-        }
-
-        // Ask for staff assignment
-        const staffId = document.getElementById('checkoutStaff').value;
-        // Note: staff assignment is optional for product purchases
+        // Get staff assignment from cart
+        const cartStaffDropdown = document.getElementById('cartStaff');
+        const staffId = cartStaffDropdown ? cartStaffDropdown.value : null;
 
         const orderData = {
             items: cart.map(item => ({
@@ -401,20 +433,34 @@ async function checkout() {
             totalAmount: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
             shippingAddress: currentUser.address,
             paymentMethod: 'card',
-            ...(staffId && { processedBy: staffId }) // Add staff if selected
+            status: 'paid', // Mark as paid immediately
+            processedBy: staffId || null // Include staff assignment
         };
+
+        console.log('🛒 Processing order with data:', orderData);
 
         const result = await apiCall('/orders', {
             method: 'POST',
             body: JSON.stringify(orderData)
         });
 
+        // Clear cart and reset UI
         cart = [];
         updateCartDisplay();
         document.getElementById('cartSection').style.display = 'none';
-        document.getElementById('checkoutStaffSection').style.display = 'none';
+        
+        // Reset staff selection
+        if (cartStaffDropdown) {
+            cartStaffDropdown.value = '';
+        }
 
         alert('Order placed successfully! Thank you for your purchase.');
+
+        // Refresh dashboard if admin/staff is viewing it
+        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) {
+            loadDashboard();
+        }
+
     } catch (error) {
         alert('Failed to place order: ' + error.message);
     }
@@ -558,7 +604,7 @@ async function confirmBooking(e) {
     }
 }
 
-// ===== GIFT PACKAGES =====
+// ===== GIFT PACKAGES - UPDATED =====
 async function loadGiftPackages() {
     try {
         const giftPackages = await apiCall('/gift-packages');
@@ -641,13 +687,50 @@ function customizeGift(giftId, giftName) {
 
     const giftPackageInput = document.getElementById('giftPackage');
     const giftCustomization = document.getElementById('giftCustomization');
+    const giftStaffSection = document.getElementById('giftStaffSection');
 
     if (giftPackageInput && giftCustomization) {
         giftPackageInput.value = giftName;
+        
+        // Load staff dropdown for gift assignment
+        populateGiftStaffDropdown();
+        
+        // Show staff selection section
+        if (giftStaffSection) {
+            giftStaffSection.style.display = 'block';
+        }
+        
         giftCustomization.style.display = 'block';
         giftCustomization.scrollIntoView({ behavior: 'smooth' });
     } else {
         console.warn('Gift customization elements not found');
+    }
+}
+
+// Load staff dropdown specifically for gifts
+async function populateGiftStaffDropdown() {
+    try {
+        const staffMembers = await loadStaffMembers();
+        const giftStaffDropdown = document.getElementById('giftStaff');
+        
+        if (giftStaffDropdown && staffMembers.length > 0) {
+            // Clear existing options except the first one
+            while (giftStaffDropdown.options.length > 1) {
+                giftStaffDropdown.remove(1);
+            }
+            
+            // Add staff options
+            staffMembers.forEach(staff => {
+                const option = document.createElement('option');
+                option.value = staff._id;
+                option.textContent = `${staff.name} (${staff.role})`;
+                giftStaffDropdown.appendChild(option);
+            });
+            
+            console.log(`✅ Loaded ${staffMembers.length} staff members for gift assignment`);
+        }
+    } catch (error) {
+        console.error('Failed to populate gift staff dropdown:', error);
     }
 }
 
@@ -658,27 +741,37 @@ async function createGift(e) {
     const recipientEmail = document.getElementById('recipientEmail').value;
     const giftMessage = document.getElementById('giftMessage').value;
     const deliveryDate = document.getElementById('deliveryDate').value;
+    const assignedStaff = document.getElementById('giftStaff').value;
+
+    // Validate required fields
+    if (!recipientName || !recipientEmail || !deliveryDate) {
+        alert('Please fill in all required fields: Recipient Name, Recipient Email, and Delivery Date');
+        return;
+    }
 
     try {
         const giftOrderData = {
             giftPackage: currentGift.giftId,
             recipientName,
             recipientEmail,
-            message: giftMessage,
+            message: giftMessage || '',
             deliveryDate,
-            status: 'pending'
+            assignedStaff: assignedStaff || null
         };
 
-        await apiCall('/gift-orders', {
+        const result = await apiCall('/gift-orders', {
             method: 'POST',
             body: JSON.stringify(giftOrderData)
         });
 
         alert(`Gift package created for ${recipientName}! An email will be sent to ${recipientEmail} with the gift details.`);
 
+        // Reset form and hide customization
         document.getElementById('giftCustomizationForm').reset();
         document.getElementById('giftCustomization').style.display = 'none';
+        document.getElementById('giftStaffSection').style.display = 'none';
         currentGift = null;
+
     } catch (error) {
         alert('Failed to create gift order: ' + error.message);
     }
@@ -800,8 +893,7 @@ async function populateStaffDropdowns() {
     }
 }
 
-
-// ===== DASHBOARD FUNCTIONS =====
+// ===== DASHBOARD FUNCTIONS - UPDATED FOR PAID ORDERS =====
 async function loadDashboard() {
     if (!currentUser) return;
 
@@ -892,7 +984,7 @@ async function loadAdminDashboard() {
     try {
         const data = await apiCall('/dashboard/admin');
 
-        // Verify and use real data counts
+        // Use actual database counts - assuming orders are paid
         const actualUsers = await getVerifiedUsersCount();
         const actualBookings = await getVerifiedBookingsCount();
         const actualProductsSold = await getVerifiedProductsSold();
@@ -932,6 +1024,90 @@ async function loadAdminDashboard() {
         // Fallback to verified calculated data
         await loadVerifiedAdminData();
     }
+}
+
+// Update revenue calculation to only count paid orders
+async function getVerifiedRevenue() {
+    try {
+        const orders = await apiCall('/orders');
+        // Only count orders that are paid/delivered
+        const paidOrders = orders.filter(order => 
+            order.status === 'paid' || order.status === 'delivered' || order.status === 'completed'
+        );
+        const totalRevenue = paidOrders.reduce((total, order) => total + (order.totalAmount || order.total || 0), 0);
+        console.log('📊 Total revenue from paid orders:', totalRevenue);
+        return totalRevenue;
+    } catch (error) {
+        console.error('Failed to get verified revenue:', error);
+        return 0;
+    }
+}
+
+// Update products sold to only count paid orders
+async function getVerifiedProductsSold() {
+    try {
+        const orders = await apiCall('/orders');
+        // Only count products from paid/delivered orders
+        const paidOrders = orders.filter(order => 
+            order.status === 'paid' || order.status === 'delivered' || order.status === 'completed'
+        );
+        const totalProducts = paidOrders.reduce((total, order) => total + (order.items?.length || 0), 0);
+        console.log('📊 Total products sold from paid orders:', totalProducts);
+        return totalProducts;
+    } catch (error) {
+        console.error('Failed to get verified products sold count:', error);
+        return 0;
+    }
+}
+
+// Update staff performance to only count paid orders
+function calculateVerifiedStaffPerformance(orders, bookings, staffMembers) {
+    const performance = {};
+    
+    // Initialize with all staff members
+    staffMembers.forEach(staff => {
+        performance[staff.name] = 0;
+    });
+
+    // Add revenue from PAID orders processed by staff
+    const paidOrders = orders.filter(order => 
+        order.status === 'paid' || order.status === 'delivered' || order.status === 'completed'
+    );
+    
+    paidOrders.forEach(order => {
+        if (order.processedBy) {
+            const staff = staffMembers.find(s => 
+                s._id === order.processedBy._id || s._id === order.processedBy
+            );
+            if (staff) {
+                performance[staff.name] += order.totalAmount || order.total || 0;
+            }
+        }
+    });
+
+    // Add revenue from COMPLETED bookings assigned to staff
+    const completedBookings = bookings.filter(booking => 
+        booking.status === 'completed'
+    );
+    
+    completedBookings.forEach(booking => {
+        if (booking.staff && booking.price) {
+            const staff = staffMembers.find(s => 
+                s._id === booking.staff._id || s._id === booking.staff
+            );
+            if (staff) {
+                performance[staff.name] += booking.price || 0;
+            }
+        }
+    });
+
+    // Filter out staff with zero performance
+    const filteredPerformance = Object.fromEntries(
+        Object.entries(performance).filter(([_, value]) => value > 0)
+    );
+
+    console.log('📊 Staff performance data (paid orders only):', filteredPerformance);
+    return filteredPerformance;
 }
 
 // ===== VERIFIED DATA FUNCTIONS =====

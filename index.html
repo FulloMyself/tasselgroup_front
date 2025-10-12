@@ -111,16 +111,22 @@
                     <!-- Products will load here -->
                 </div>
 
+                <!-- Update your cart section in shop section -->
                 <div class="mt-5" id="cartSection" style="display: none;">
                     <h3>Your Cart</h3>
                     <div id="cartItems" class="mb-3"></div>
-                    <div class="mb-3" id="checkoutStaffSection" style="display: none;">
-                        <label for="checkoutStaff" class="form-label">Staff Member Assisting You</label>
-                        <select class="form-control" id="checkoutStaff">
+
+                    <!-- Add staff assignment to cart -->
+                    <div class="mb-3" id="cartStaffSection">
+                        <label for="cartStaff" class="form-label">Staff Member Assisting You (Optional)</label>
+                        <select class="form-control" id="cartStaff">
                             <option value="">Select staff member (optional)</option>
                             <!-- Staff options will be loaded dynamically -->
                         </select>
+                        <small class="text-muted">Selecting a staff member helps us track who provided excellent
+                            service.</small>
                     </div>
+
                     <button class="btn btn-success" onclick="checkout()">Proceed to Checkout</button>
                 </div>
             </div>
@@ -207,6 +213,14 @@
                         <div class="mb-3">
                             <label for="deliveryDate" class="form-label">Preferred Delivery Date</label>
                             <input type="date" class="form-control" id="deliveryDate" required>
+                        </div>
+                        <div class="mb-3" id="giftStaffSection" style="display: none;">
+                            <label for="giftStaff" class="form-label">Assign to Staff Member (Optional)</label>
+                            <select class="form-control" id="giftStaff">
+                                <option value="">Select staff member (optional)</option>
+                                <!-- Staff options will be loaded dynamically -->
+                            </select>
+                            <small class="text-muted">Assign a staff member to handle this gift order.</small>
                         </div>
                         <button type="submit" class="btn btn-success">Create Gift</button>
                     </form>

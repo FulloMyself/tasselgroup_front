@@ -39,12 +39,18 @@ async function apiCall(endpoint, options = {}) {
         ...options
     };
 
+    // Add body to config if it exists and method is not GET/HEAD
+    if (options.body && !['GET', 'HEAD'].includes(options.method?.toUpperCase() || 'GET')) {
+        config.body = options.body;
+    }
+
     try {
         console.log(`📡 Making API call to: ${API_BASE}${endpoint}`);
         const response = await fetch(`${API_BASE}${endpoint}`, config);
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
 
         const data = await response.json();
@@ -56,245 +62,21 @@ async function apiCall(endpoint, options = {}) {
     }
 }
 
-// Debug function to test authentication with unique email
-async function debugAuth() {
-    try {
-        console.log('🔍 Testing authentication...');
-        
-        // Use unique email with timestamp
-        const timestamp = new Date().getTime();
-        const uniqueEmail = `test${timestamp}@example.com`;
-        
-        // Test register with unique email
-        const registerData = {
-            name: "Test User",
-            email: uniqueEmail,
-            password: "password123",
-            phone: "1234567890",
-            address: "123 Test Street"
-        };
-        
-        console.log('Registering with email:', uniqueEmail);
-        
-        const registerResponse = await fetch('https://tasselgroup-back.onrender.com/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(registerData)
-        });
-        
-        console.log('Register response status:', registerResponse.status);
-        const registerResult = await registerResponse.json();
-        console.log('Register result:', registerResult);
-        
-        // If registration successful, test login
-        if (registerResponse.ok) {
-            console.log('✅ Registration successful, testing login...');
-            
-            const loginData = {
-                email: uniqueEmail,
-                password: "password123"
-            };
-            
-            const loginResponse = await fetch('https://tasselgroup-back.onrender.com/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(loginData)
-            });
-            
-            console.log('Login response status:', loginResponse.status);
-            const loginResult = await loginResponse.json();
-            console.log('Login result:', loginResult);
-        }
-        
-    } catch (error) {
-        console.error('Auth debug error:', error);
-    }
-}
-
-// Check authentication status
-function checkAuthStatus() {
-    const token = localStorage.getItem('token');
-    const currentUser = localStorage.getItem('currentUser');
-    
-    console.log('🔐 Authentication Status:');
-    console.log('Token exists:', !!token);
-    console.log('Token value:', token ? `${token.substring(0, 20)}...` : 'None');
-    console.log('Current user:', currentUser ? JSON.parse(currentUser) : 'None');
-    console.log('API Base:', API_BASE);
-    
-    return !!token;
-}
-
-
-// Debug function to check all required elements
-function debugElements() {
-    const requiredElements = [
-        'productsContainer',
-        'servicesContainer', 
-        'giftPackagesContainer',
-        'home',
-        'shop',
-        'bookings',
-        'gifts',
-        'login',
-        'profile',
-        'dashboard'
-    ];
-    
-    console.log('🔍 Checking required elements:');
-    requiredElements.forEach(id => {
-        const element = document.getElementById(id);
-        console.log(`${id}:`, element ? '✅ Found' : '❌ Missing');
-    });
-}
-
-// Debug function to check API responses
-async function debugAPIResponses() {
-    try {
-        console.log('🔍 Debugging API responses...');
-        
-        const productsResponse = await fetch('https://tasselgroup-back.onrender.com/api/products');
-        const productsData = await productsResponse.json();
-        console.log('Products API response:', productsData);
-        console.log('Products type:', typeof productsData);
-        console.log('Is array:', Array.isArray(productsData));
-        
-        const servicesResponse = await fetch('https://tasselgroup-back.onrender.com/api/services');
-        const servicesData = await servicesResponse.json();
-        console.log('Services API response:', servicesData);
-        console.log('Services type:', typeof servicesData);
-        console.log('Is array:', Array.isArray(servicesData));
-        
-    } catch (error) {
-        console.error('Debug error:', error);
-    }
-}
-
-// Debug booking creation WITH authentication
-async function debugBooking() {
-    try {
-        console.log('🔍 Debugging booking creation...');
-        
-        // Check if we're logged in
-        if (!checkAuthStatus()) {
-            console.log('❌ Not logged in. Please login first.');
-            return;
-        }
-        
-        // First, get available services to use a real service ID
-        const services = await apiCall('/services');
-        console.log('Available services:', services);
-        
-        if (services.length === 0) {
-            console.log('❌ No services available to book');
-            return;
-        }
-        
-        // Use the first available service
-        const service = services[0];
-        
-        // Test booking data
-        const testBooking = {
-            service: service._id,
-            date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
-            time: "14:00",
-            specialRequests: "Test booking from debug"
-        };
-        
-        console.log('Test booking data:', testBooking);
-        
-        // Use apiCall to ensure authentication header is sent
-        const result = await apiCall('/bookings', {
-            method: 'POST',
-            body: JSON.stringify(testBooking)
-        });
-        
-        console.log('✅ Booking created successfully:', result);
-        
-    } catch (error) {
-        console.error('❌ Booking debug error:', error);
-        
-        if (error.message.includes('401')) {
-            console.log('💡 Tip: You need to be logged in to create bookings.');
-            console.log('💡 Try logging in with: testExistingUsers()');
-        }
-    }
-}
-
-
-// ===== INITIALIZATION =====
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Initializing Tassel Group Application');
-    debugElements(); // Add this line
-    debugAPIResponses();
-    debugAuth();
-    debugBooking();
-    checkAuthStatus();
-    
-    // Debug: Check what forms exist
-    console.log('Forms check:');
-    console.log('Login form:', document.getElementById('loginFormElement'));
-    console.log('Register form:', document.getElementById('registerFormElement'));
-    console.log('Profile form:', document.getElementById('profileForm'));
-    console.log('Password form:', document.getElementById('passwordForm'));
-    console.log('Booking form:', document.getElementById('bookingDetailsForm'));
-    console.log('Gift form:', document.getElementById('giftCustomizationForm'));
-    
-    // Check if user is already logged in
-    const token = localStorage.getItem('token');
-    if (token) {
-        fetchCurrentUser();
-    }
-    
-    // Safe form setup
-    safeFormSetup();
-    
-    // Set minimum dates
-    setMinimumDates();
-    
-    // Load initial data
-    loadProducts();
-    loadServices();
-    loadGiftPackages();
-});
-
-function safeFormSetup() {
-    // Only add listeners if forms exist
-    const loginForm = document.getElementById('loginFormElement');
-    const registerForm = document.getElementById('registerFormElement');
-    const profileForm = document.getElementById('profileForm');
-    const passwordForm = document.getElementById('passwordForm');
-    const bookingForm = document.getElementById('bookingDetailsForm');
-    const giftForm = document.getElementById('giftCustomizationForm');
-    
-    if (loginForm) loginForm.addEventListener('submit', (e) => { e.preventDefault(); handleLogin(e); });
-    if (registerForm) registerForm.addEventListener('submit', (e) => { e.preventDefault(); handleRegister(e); });
-    if (profileForm) profileForm.addEventListener('submit', (e) => { e.preventDefault(); updateProfile(e); });
-    if (passwordForm) passwordForm.addEventListener('submit', (e) => { e.preventDefault(); changePassword(e); });
-    if (bookingForm) bookingForm.addEventListener('submit', (e) => { e.preventDefault(); confirmBooking(e); });
-    if (giftForm) giftForm.addEventListener('submit', (e) => { e.preventDefault(); createGift(e); });
-    
-    console.log('Form setup completed');
-}
-
-function setMinimumDates() {
-    const today = new Date().toISOString().split('T')[0];
-    const bookingDate = document.getElementById('bookingDate');
-    const deliveryDate = document.getElementById('deliveryDate');
-    
-    if (bookingDate) bookingDate.min = today;
-    if (deliveryDate) deliveryDate.min = today;
-}
-
 // ===== AUTHENTICATION FUNCTIONS =====
 async function fetchCurrentUser() {
     try {
         const data = await apiCall('/auth/me');
         currentUser = data.user;
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
         updateUIForUser();
+        return currentUser;
     } catch (error) {
+        console.error('Failed to fetch current user:', error);
         localStorage.removeItem('token');
+        localStorage.removeItem('currentUser');
         currentUser = null;
+        updateUIForUser();
+        throw error;
     }
 }
 
@@ -312,13 +94,14 @@ async function handleLogin(e) {
 
         localStorage.setItem('token', data.token);
         currentUser = data.user;
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
         updateUIForUser();
         showSection('home');
 
         document.getElementById('loginFormElement').reset();
         alert('Login successful!');
     } catch (error) {
-        alert(error.message);
+        alert('Login failed: ' + error.message);
     }
 }
 
@@ -339,13 +122,14 @@ async function handleRegister(e) {
 
         localStorage.setItem('token', data.token);
         currentUser = data.user;
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
         updateUIForUser();
         showSection('home');
 
         document.getElementById('registerFormElement').reset();
         alert('Registration successful!');
     } catch (error) {
-        alert(error.message);
+        alert('Registration failed: ' + error.message);
     }
 }
 
@@ -359,6 +143,8 @@ function updateUIForUser() {
 
         if (currentUser.role === 'staff' || currentUser.role === 'admin') {
             document.getElementById('dashboardLink').style.display = 'block';
+        } else {
+            document.getElementById('dashboardLink').style.display = 'none';
         }
 
         // Update profile section
@@ -370,7 +156,7 @@ function updateUIForUser() {
         document.getElementById('profileFullName').value = currentUser.name;
         document.getElementById('profileEmailInput').value = currentUser.email;
         document.getElementById('profilePhone').value = currentUser.phone;
-        document.getElementById('profileAddress').value = currentUser.address;
+        document.getElementById('profileAddress').value = currentUser.address || '';
     } else {
         document.getElementById('userDropdown').style.display = 'none';
         document.getElementById('loginLink').style.display = 'block';
@@ -380,6 +166,8 @@ function updateUIForUser() {
 function logout() {
     currentUser = null;
     localStorage.removeItem('token');
+    localStorage.removeItem('currentUser');
+    cart = [];
     updateUIForUser();
     showSection('home');
     alert('You have been logged out.');
@@ -391,24 +179,30 @@ function showSection(sectionId) {
         section.style.display = 'none';
     });
 
-    document.getElementById(sectionId).style.display = 'block';
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) {
+        targetSection.style.display = 'block';
+    }
 
     if (sectionId === 'dashboard' && currentUser) {
         loadDashboard();
+    }
+
+    if (sectionId === 'shop') {
+        updateCartDisplay();
     }
 
     window.scrollTo(0, 0);
 }
 
 // ===== PRODUCTS & SHOPPING =====
-// ===== PRODUCTS & SHOPPING =====
 async function loadProducts() {
     try {
         const response = await apiCall('/products');
-        
+
         // Handle different response formats
         let products = [];
-        
+
         if (Array.isArray(response)) {
             // Response is directly an array
             products = response;
@@ -422,17 +216,17 @@ async function loadProducts() {
             console.warn('Unexpected API response format for products:', response);
             products = [];
         }
-        
+
         const container = document.getElementById('productsContainer');
-        
+
         // Safe check for container
         if (!container) {
             console.warn('⚠️ productsContainer not found in DOM');
             return;
         }
-        
+
         container.innerHTML = '';
-        
+
         if (products.length === 0) {
             container.innerHTML = `
                 <div class="col-12 text-center">
@@ -443,7 +237,7 @@ async function loadProducts() {
             `;
             return;
         }
-        
+
         products.forEach(product => {
             const productCard = `
                 <div class="col-md-4 mb-4">
@@ -465,9 +259,9 @@ async function loadProducts() {
             `;
             container.innerHTML += productCard;
         });
-        
+
         console.log(`✅ Loaded ${products.length} products`);
-        
+
     } catch (error) {
         console.error('Failed to load products:', error);
         const container = document.getElementById('productsContainer');
@@ -483,7 +277,6 @@ async function loadProducts() {
     }
 }
 
-
 function addToCart(productId, productName, price) {
     if (!currentUser) {
         alert('Please log in to add items to your cart');
@@ -491,54 +284,79 @@ function addToCart(productId, productName, price) {
         return;
     }
 
-    cart.push({ productId, name: productName, price, quantity: 1 });
+    // Check if product already in cart
+    const existingItem = cart.find(item => item.productId === productId);
+    if (existingItem) {
+        existingItem.quantity += 1;
+    } else {
+        cart.push({ productId, name: productName, price, quantity: 1 });
+    }
+
     updateCartDisplay();
     document.getElementById('cartSection').style.display = 'block';
     alert(`${productName} added to cart!`);
 }
 
-// Update the updateCartDisplay function with safe checks
 function updateCartDisplay() {
     const cartItems = document.getElementById('cartItems');
     const cartSection = document.getElementById('cartSection');
-    
-    // Safe check for elements
+
     if (!cartItems || !cartSection) {
         console.warn('Cart elements not found in DOM');
         return;
     }
-    
+
     cartItems.innerHTML = '';
-    
+
     if (cart.length === 0) {
         cartItems.innerHTML = '<p>Your cart is empty</p>';
         cartSection.style.display = 'none';
         return;
     }
-    
+
     let total = 0;
     cart.forEach((item, index) => {
-        total += item.price * item.quantity;
+        const itemTotal = item.price * item.quantity;
+        total += itemTotal;
         cartItems.innerHTML += `
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <span>${item.name} (x${item.quantity})</span>
-                <span>R ${item.price * item.quantity} 
+                <div>
+                    <span>${item.name}</span>
+                    <div class="btn-group btn-group-sm ms-2">
+                        <button class="btn btn-outline-secondary" onclick="updateCartQuantity(${index}, -1)">-</button>
+                        <span class="btn btn-outline-secondary disabled">${item.quantity}</span>
+                        <button class="btn btn-outline-secondary" onclick="updateCartQuantity(${index}, 1)">+</button>
+                    </div>
+                </div>
+                <div>
+                    <span>R ${itemTotal}</span>
                     <button class="btn btn-sm btn-outline-danger ms-2" onclick="removeFromCart(${index})">
                         <i class="fas fa-trash"></i>
                     </button>
-                </span>
+                </div>
             </div>
         `;
     });
-    
+
     cartItems.innerHTML += `
         <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
             <strong>Total</strong>
             <strong>R ${total}</strong>
         </div>
     `;
-    
+
     cartSection.style.display = 'block';
+}
+
+function updateCartQuantity(index, change) {
+    const item = cart[index];
+    item.quantity += change;
+
+    if (item.quantity <= 0) {
+        cart.splice(index, 1);
+    }
+
+    updateCartDisplay();
 }
 
 function removeFromCart(index) {
@@ -569,11 +387,11 @@ async function checkout() {
                 quantity: item.quantity,
                 price: item.price
             })),
-            shippingAddress: currentUser.address,
-            paymentMethod: 'card'
+            totalAmount: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+            shippingAddress: currentUser.address
         };
 
-        await apiCall('/orders', {
+        const result = await apiCall('/orders', {
             method: 'POST',
             body: JSON.stringify(orderData)
         });
@@ -591,33 +409,17 @@ async function checkout() {
 // ===== SERVICES & BOOKINGS =====
 async function loadServices() {
     try {
-        const response = await apiCall('/services');
-        
-        // Handle different response formats
-        let services = [];
-        
-        if (Array.isArray(response)) {
-            services = response;
-        } else if (response.services && Array.isArray(response.services)) {
-            services = response.services;
-        } else if (response.data && Array.isArray(response.data)) {
-            services = response.data;
-        } else {
-            console.warn('Unexpected API response format for services:', response);
-            services = [];
-        }
-        
+        const services = await apiCall('/services');
         const container = document.getElementById('servicesContainer');
-        
-        // Safe check for container
+
         if (!container) {
             console.warn('⚠️ servicesContainer not found in DOM');
             return;
         }
-        
+
         container.innerHTML = '';
-        
-        if (services.length === 0) {
+
+        if (!services || services.length === 0) {
             container.innerHTML = `
                 <div class="col-12 text-center">
                     <div class="alert alert-info">
@@ -627,7 +429,7 @@ async function loadServices() {
             `;
             return;
         }
-        
+
         services.forEach(service => {
             const serviceCard = `
                 <div class="col-md-6 mb-4">
@@ -638,7 +440,7 @@ async function loadServices() {
                             <p class="card-text"><strong>Duration:</strong> ${service.duration || 'Not specified'}</p>
                             <p class="card-text"><strong>Price:</strong> R ${service.price || 0}</p>
                             <button class="btn btn-primary" 
-                                    onclick="bookService('${service._id || service.id}', '${(service.name || '').replace(/'/g, "\\'")}', ${service.price || 0}, '${service.duration || ''}')">
+                                    onclick="bookService('${service._id}', '${service.name.replace(/'/g, "\\'")}', ${service.price}, '${service.duration || ''}')">
                                 Book Now
                             </button>
                         </div>
@@ -647,9 +449,9 @@ async function loadServices() {
             `;
             container.innerHTML += serviceCard;
         });
-        
+
         console.log(`✅ Loaded ${services.length} services`);
-        
+
     } catch (error) {
         console.error('Failed to load services:', error);
         const container = document.getElementById('servicesContainer');
@@ -665,20 +467,18 @@ async function loadServices() {
     }
 }
 
-// Update bookService function with safe checks
 function bookService(serviceId, serviceName, price, duration) {
     if (!currentUser) {
         alert('Please log in to book services');
         showSection('login');
         return;
     }
-    
+
     currentBooking = { serviceId, name: serviceName, price, duration };
-    
+
     const serviceNameInput = document.getElementById('serviceName');
     const bookingForm = document.getElementById('bookingForm');
-    
-    // Safe check for elements
+
     if (serviceNameInput && bookingForm) {
         serviceNameInput.value = serviceName;
         bookingForm.style.display = 'block';
@@ -690,87 +490,61 @@ function bookService(serviceId, serviceName, price, duration) {
 
 async function confirmBooking(e) {
     e.preventDefault();
-    
+
     if (!currentBooking) {
         alert('No service selected for booking');
         return;
     }
-    
+
     const date = document.getElementById('bookingDate').value;
     const time = document.getElementById('bookingTime').value;
     const specialRequests = document.getElementById('specialRequests').value;
-    
-    // Validate required fields
+
     if (!date || !time) {
         alert('Please select both date and time for your booking');
         return;
     }
-    
+
     try {
         const bookingData = {
             service: currentBooking.serviceId,
             date,
             time,
-            specialRequests: specialRequests || ''
+            specialRequests: specialRequests || '',
+            status: 'confirmed'
         };
-        
-        console.log('Sending booking data:', bookingData);
-        
-        await apiCall('/bookings', {
+
+        const result = await apiCall('/bookings', {
             method: 'POST',
             body: JSON.stringify(bookingData)
         });
-        
-        // Reset form
+
         document.getElementById('bookingDetailsForm').reset();
         document.getElementById('bookingForm').style.display = 'none';
         currentBooking = null;
-        
+
         alert('Booking confirmed! We look forward to seeing you.');
-        
+
     } catch (error) {
         console.error('Booking error details:', error);
-        
-        if (error.message.includes('500')) {
-            alert('Server error while creating booking. Please try again later.');
-        } else if (error.message.includes('400')) {
-            alert('Invalid booking data. Please check your information.');
-        } else {
-            alert('Failed to create booking: ' + error.message);
-        }
+        alert('Failed to create booking: ' + error.message);
     }
 }
 
 // ===== GIFT PACKAGES =====
 async function loadGiftPackages() {
     try {
-        const response = await apiCall('/gift-packages');
-        
-        // Handle different response formats
-        let giftPackages = [];
-        
-        if (Array.isArray(response)) {
-            giftPackages = response;
-        } else if (response.giftPackages && Array.isArray(response.giftPackages)) {
-            giftPackages = response.giftPackages;
-        } else if (response.data && Array.isArray(response.data)) {
-            giftPackages = response.data;
-        } else {
-            console.warn('Unexpected API response format for gift packages:', response);
-            giftPackages = [];
-        }
-        
+        const giftPackages = await apiCall('/gift-packages');
         const container = document.getElementById('giftPackagesContainer');
-        
-        // Safe check for container
+
         if (!container) {
             console.warn('⚠️ giftPackagesContainer not found in DOM');
             return;
         }
-        
+
         container.innerHTML = '';
-        
-        if (giftPackages.length === 0) {
+
+        if (!giftPackages || giftPackages.length === 0) {
             container.innerHTML = `
                 <div class="col-12 text-center">
                     <div class="alert alert-info">
@@ -780,12 +554,12 @@ async function loadGiftPackages() {
             `;
             return;
         }
-        
+
         giftPackages.forEach(gift => {
-            const includesList = Array.isArray(gift.includes) 
+            const includesList = Array.isArray(gift.includes)
                 ? gift.includes.map(item => `<li>${item}</li>`).join('')
                 : '<li>No details available</li>';
-                
+
             const giftCard = `
                 <div class="col-md-4 mb-4">
                     <div class="card h-100">
@@ -802,7 +576,7 @@ async function loadGiftPackages() {
                             </ul>
                             <p class="card-text"><strong>From R ${gift.basePrice || gift.price || 0}</strong></p>
                             <button class="btn btn-primary mt-auto" 
-                                    onclick="customizeGift('${gift._id || gift.id}', '${(gift.name || '').replace(/'/g, "\\'")}')">
+                                    onclick="customizeGift('${gift._id}', '${gift.name.replace(/'/g, "\\'")}')">
                                 Customize Gift
                             </button>
                         </div>
@@ -811,9 +585,9 @@ async function loadGiftPackages() {
             `;
             container.innerHTML += giftCard;
         });
-        
+
         console.log(`✅ Loaded ${giftPackages.length} gift packages`);
-        
+
     } catch (error) {
         console.error('Failed to load gift packages:', error);
         const container = document.getElementById('giftPackagesContainer');
@@ -829,20 +603,18 @@ async function loadGiftPackages() {
     }
 }
 
-// Update customizeGift function with safe checks
 function customizeGift(giftId, giftName) {
     if (!currentUser) {
         alert('Please log in to create gift packages');
         showSection('login');
         return;
     }
-    
+
     currentGift = { giftId, name: giftName };
-    
+
     const giftPackageInput = document.getElementById('giftPackage');
     const giftCustomization = document.getElementById('giftCustomization');
-    
-    // Safe check for elements
+
     if (giftPackageInput && giftCustomization) {
         giftPackageInput.value = giftName;
         giftCustomization.style.display = 'block';
@@ -860,11 +632,29 @@ async function createGift(e) {
     const giftMessage = document.getElementById('giftMessage').value;
     const deliveryDate = document.getElementById('deliveryDate').value;
 
-    alert(`Gift package created for ${recipientName}! An email will be sent to ${recipientEmail} with the gift details.`);
+    try {
+        const giftOrderData = {
+            giftPackage: currentGift.giftId,
+            recipientName,
+            recipientEmail,
+            message: giftMessage,
+            deliveryDate,
+            status: 'pending'
+        };
 
-    document.getElementById('giftCustomizationForm').reset();
-    document.getElementById('giftCustomization').style.display = 'none';
-    currentGift = null;
+        await apiCall('/gift-orders', {
+            method: 'POST',
+            body: JSON.stringify(giftOrderData)
+        });
+
+        alert(`Gift package created for ${recipientName}! An email will be sent to ${recipientEmail} with the gift details.`);
+
+        document.getElementById('giftCustomizationForm').reset();
+        document.getElementById('giftCustomization').style.display = 'none';
+        currentGift = null;
+    } catch (error) {
+        alert('Failed to create gift order: ' + error.message);
+    }
 }
 
 // ===== PROFILE MANAGEMENT =====
@@ -877,18 +667,18 @@ async function updateProfile(e) {
     const address = document.getElementById('profileAddress').value;
 
     try {
-        await apiCall('/users/profile', {
+        const updatedUser = await apiCall('/users/profile', {
             method: 'PUT',
             body: JSON.stringify({ name, email, phone, address })
         });
 
-        currentUser = { ...currentUser, name, email, phone, address };
+        currentUser = { ...currentUser, ...updatedUser };
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
         updateUIForUser();
 
         alert('Profile updated successfully!');
     } catch (error) {
-        alert(error.message);
+        alert('Failed to update profile: ' + error.message);
     }
 }
 
@@ -913,12 +703,14 @@ async function changePassword(e) {
         document.getElementById('passwordForm').reset();
         alert('Password changed successfully!');
     } catch (error) {
-        alert(error.message);
+        alert('Failed to change password: ' + error.message);
     }
 }
 
 // ===== DASHBOARD FUNCTIONS =====
 async function loadDashboard() {
+    if (!currentUser) return;
+
     if (currentUser.role === 'staff') {
         document.getElementById('staffDashboard').style.display = 'block';
         document.getElementById('adminDashboard').style.display = 'none';
@@ -934,12 +726,48 @@ async function loadStaffDashboard() {
     try {
         const data = await apiCall('/dashboard/staff');
 
-        document.getElementById('staffSales').textContent = data.stats.totalSales;
-        document.getElementById('staffClients').textContent = data.stats.totalClients;
-        document.getElementById('staffHours').textContent = data.stats.totalHours;
-        document.getElementById('staffCommission').textContent = 'R ' + data.stats.totalCommission;
+        document.getElementById('staffSales').textContent = data.stats?.totalSales || 0;
+        document.getElementById('staffClients').textContent = data.stats?.totalClients || 0;
+        document.getElementById('staffHours').textContent = data.stats?.totalHours || 0;
+        document.getElementById('staffCommission').textContent = 'R ' + (data.stats?.totalCommission || 0);
 
-        // Load appointments, sales, vouchers... (add your existing dashboard code here)
+        // Load appointments
+        const appointmentsList = document.getElementById('staffAppointments');
+        if (appointmentsList && data.appointments) {
+            appointmentsList.innerHTML = data.appointments.map(apt => `
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    ${apt.serviceName} - ${apt.clientName}
+                    <span class="badge bg-primary rounded-pill">${new Date(apt.date).toLocaleDateString()}, ${apt.time}</span>
+                </li>
+            `).join('') || '<li class="list-group-item">No upcoming appointments</li>';
+        }
+
+        // Load recent sales
+        const recentSalesList = document.getElementById('staffRecentSales');
+        if (recentSalesList && data.recentSales) {
+            recentSalesList.innerHTML = data.recentSales.map(sale => `
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    ${sale.productName}
+                    <span class="badge bg-success rounded-pill">R ${sale.amount}</span>
+                </li>
+            `).join('') || '<li class="list-group-item">No recent sales</li>';
+        }
+
+        // Load vouchers
+        const vouchersContainer = document.getElementById('staffVouchers');
+        if (vouchersContainer && data.vouchers) {
+            vouchersContainer.innerHTML = data.vouchers.map(voucher => `
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">${voucher.code}</h6>
+                            <p class="card-text">Discount: ${voucher.discount}%</p>
+                            <p class="card-text">Expires: ${new Date(voucher.expiryDate).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('') || '<div class="col-12"><p>No vouchers assigned to you</p></div>';
+        }
 
     } catch (error) {
         console.error('Failed to load staff dashboard:', error);
@@ -950,25 +778,144 @@ async function loadAdminDashboard() {
     try {
         const data = await apiCall('/dashboard/admin');
 
-        document.getElementById('totalUsers').textContent = data.stats.totalUsers;
-        document.getElementById('totalBookings').textContent = data.stats.totalBookings;
-        document.getElementById('totalProducts').textContent = data.stats.totalProducts;
-        document.getElementById('totalRevenue').textContent = 'R ' + data.stats.totalRevenue;
+        document.getElementById('totalUsers').textContent = data.stats?.totalUsers || 0;
+        document.getElementById('totalBookings').textContent = data.stats?.totalBookings || 0;
+        document.getElementById('totalProducts').textContent = data.stats?.totalProducts || 0;
+        document.getElementById('totalRevenue').textContent = 'R ' + (data.stats?.totalRevenue || 0);
 
-        // Load charts and recent activity... (add your existing dashboard code here)
+        // Load charts
+        if (data.charts) {
+            createRevenueChart(data.charts.revenue);
+            createStaffPerformanceChart(data.charts.staffPerformance);
+            createServicesChart(data.charts.popularServices);
+        }
+
+        // Load recent activity
+        const recentActivityList = document.getElementById('recentActivity');
+        if (recentActivityList && data.recentActivity) {
+            recentActivityList.innerHTML = data.recentActivity.map(activity => `
+                <li class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">${activity.title}</h6>
+                        <small>${new Date(activity.timestamp).toLocaleDateString()}</small>
+                    </div>
+                    <p class="mb-1">${activity.description}</p>
+                </li>
+            `).join('') || '<li class="list-group-item">No recent activity</li>';
+        }
 
     } catch (error) {
         console.error('Failed to load admin dashboard:', error);
     }
 }
 
-// ===== ADMIN MODAL FUNCTIONS =====
+// ===== CHART FUNCTIONS =====
+function createRevenueChart(data) {
+    const ctx = document.getElementById('revenueChart');
+    if (!ctx) return;
+
+    cleanupCharts();
+
+    chartInstances.revenueChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data?.labels || ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [{
+                label: 'Monthly Revenue (R)',
+                data: data?.values || [6500, 7200, 8100, 7800, 9200, 10500],
+                borderColor: '#8a6d3b',
+                backgroundColor: 'rgba(138, 109, 59, 0.1)',
+                tension: 0.3,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Revenue Trend'
+                }
+            }
+        }
+    });
+}
+
+function createStaffPerformanceChart(data) {
+    const ctx = document.getElementById('staffPerformanceChart');
+    if (!ctx) return;
+
+    chartInstances.staffPerformanceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data?.labels || ['Jane', 'John', 'Mike', 'Sarah'],
+            datasets: [{
+                label: 'Sales Performance',
+                data: data?.values || [12000, 9000, 7500, 11000],
+                backgroundColor: 'rgba(138, 109, 59, 0.8)',
+                borderColor: '#8a6d3b',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Staff Performance'
+                }
+            }
+        }
+    });
+}
+
+function createServicesChart(data) {
+    const ctx = document.getElementById('servicesChart');
+    if (!ctx) return;
+
+    chartInstances.servicesChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: data?.labels || ['Massage', 'Facial', 'Manicure', 'Pedicure'],
+            datasets: [{
+                data: data?.values || [35, 25, 20, 20],
+                backgroundColor: [
+                    '#8a6d3b',
+                    '#d4af37',
+                    '#f5f5f5',
+                    '#333333'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                },
+                title: {
+                    display: true,
+                    text: 'Popular Services'
+                }
+            }
+        }
+    });
+}
+
+// ===== ADMIN FUNCTIONS =====
 async function showAdminModal(action) {
     try {
         const modal = new bootstrap.Modal(document.getElementById('adminModal'));
         const modalTitle = document.getElementById('adminModalTitle');
         const modalBody = document.getElementById('adminModalBody');
-        
+
         if (!modal || !modalTitle || !modalBody) {
             console.warn('Admin modal elements not found');
             return;
@@ -1008,13 +955,13 @@ async function showAdminModal(action) {
                     <button type="submit" class="btn btn-primary">Add Service</button>
                 </form>
             `;
-            
-            document.getElementById('addServiceForm').addEventListener('submit', async function(e) {
+
+            document.getElementById('addServiceForm').addEventListener('submit', async function (e) {
                 e.preventDefault();
                 await addNewService();
                 modal.hide();
             });
-            
+
         } else if (action === 'addProduct') {
             modalTitle.textContent = 'Add New Product';
             modalBody.innerHTML = `
@@ -1048,26 +995,48 @@ async function showAdminModal(action) {
                     <button type="submit" class="btn btn-primary">Add Product</button>
                 </form>
             `;
-            
-            document.getElementById('addProductForm').addEventListener('submit', async function(e) {
+
+            document.getElementById('addProductForm').addEventListener('submit', async function (e) {
                 e.preventDefault();
                 await addNewProduct();
                 modal.hide();
             });
-            
+
         } else if (action === 'addVoucher') {
-            // For now, just show a message since we need staff data
             modalTitle.textContent = 'Create Voucher Code';
             modalBody.innerHTML = `
-                <div class="alert alert-info">
-                    <p>Voucher creation requires staff data from the backend.</p>
-                    <p>This feature will be available once the backend is fully configured.</p>
-                </div>
+                <form id="addVoucherForm">
+                    <div class="mb-3">
+                        <label for="voucherCode" class="form-label">Voucher Code</label>
+                        <input type="text" class="form-control" id="voucherCode" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="voucherDiscount" class="form-label">Discount (%)</label>
+                        <input type="number" class="form-control" id="voucherDiscount" min="1" max="100" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="voucherExpiry" class="form-label">Expiry Date</label>
+                        <input type="date" class="form-control" id="voucherExpiry" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="voucherStaff" class="form-label">Assign to Staff (Optional)</label>
+                        <select class="form-control" id="voucherStaff">
+                            <option value="">No specific staff</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Voucher</button>
+                </form>
             `;
+
+            document.getElementById('addVoucherForm').addEventListener('submit', async function (e) {
+                e.preventDefault();
+                await addNewVoucher();
+                modal.hide();
+            });
         }
-        
+
         modal.show();
-        
+
     } catch (error) {
         console.error('Error showing admin modal:', error);
         alert('Unable to load admin controls: ' + error.message);
@@ -1081,16 +1050,15 @@ async function addNewService() {
         const price = parseInt(document.getElementById('servicePrice').value);
         const duration = document.getElementById('serviceDuration').value;
         const category = document.getElementById('serviceCategory').value;
-        
+
         await apiCall('/services', {
             method: 'POST',
             body: JSON.stringify({ name, description, price, duration, category })
         });
-        
-        // Reload services
+
         loadServices();
         alert('Service added successfully!');
-        
+
     } catch (error) {
         alert('Failed to add service: ' + error.message);
     }
@@ -1103,22 +1071,47 @@ async function addNewProduct() {
         const price = parseInt(document.getElementById('productPrice').value);
         const category = document.getElementById('productCategory').value;
         const image = document.getElementById('productImage').value;
-        
+
         await apiCall('/products', {
             method: 'POST',
             body: JSON.stringify({ name, description, price, category, image })
         });
-        
-        // Reload products
+
         loadProducts();
         alert('Product added successfully!');
-        
+
     } catch (error) {
         alert('Failed to add product: ' + error.message);
     }
 }
 
-// Clean up all chart instances
+async function addNewVoucher() {
+    try {
+        const code = document.getElementById('voucherCode').value;
+        const discount = parseInt(document.getElementById('voucherDiscount').value);
+        const expiryDate = document.getElementById('voucherExpiry').value;
+        const assignedStaff = document.getElementById('voucherStaff').value;
+
+        const voucherData = {
+            code,
+            discount,
+            expiryDate,
+            ...(assignedStaff && { assignedStaff })
+        };
+
+        await apiCall('/vouchers', {
+            method: 'POST',
+            body: JSON.stringify(voucherData)
+        });
+
+        alert('Voucher created successfully!');
+
+    } catch (error) {
+        alert('Failed to create voucher: ' + error.message);
+    }
+}
+
+// ===== UTILITY FUNCTIONS =====
 function cleanupCharts() {
     Object.keys(chartInstances).forEach(chartName => {
         if (chartInstances[chartName]) {
@@ -1131,3 +1124,68 @@ function cleanupCharts() {
         }
     });
 }
+
+function setMinimumDates() {
+    const today = new Date().toISOString().split('T')[0];
+    const bookingDate = document.getElementById('bookingDate');
+    const deliveryDate = document.getElementById('deliveryDate');
+
+    if (bookingDate) bookingDate.min = today;
+    if (deliveryDate) deliveryDate.min = today;
+}
+
+function safeFormSetup() {
+    const forms = {
+        'loginFormElement': handleLogin,
+        'registerFormElement': handleRegister,
+        'profileForm': updateProfile,
+        'passwordForm': changePassword,
+        'bookingDetailsForm': confirmBooking,
+        'giftCustomizationForm': createGift
+    };
+
+    Object.entries(forms).forEach(([formId, handler]) => {
+        const form = document.getElementById(formId);
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                handler(e);
+            });
+        }
+    });
+
+    console.log('Form setup completed');
+}
+
+// ===== INITIALIZATION =====
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('🚀 Initializing Tassel Group Application');
+
+    // Check if user is already logged in
+    const token = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('currentUser');
+
+    if (token && savedUser) {
+        try {
+            currentUser = JSON.parse(savedUser);
+            updateUIForUser();
+        } catch (error) {
+            console.error('Error parsing saved user:', error);
+            localStorage.removeItem('token');
+            localStorage.removeItem('currentUser');
+        }
+    }
+
+    // Safe form setup
+    safeFormSetup();
+
+    // Set minimum dates
+    setMinimumDates();
+
+    // Load initial data
+    loadProducts();
+    loadServices();
+    loadGiftPackages();
+
+    console.log('✅ Application initialized successfully');
+});

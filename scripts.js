@@ -56,6 +56,76 @@ async function apiCall(endpoint, options = {}) {
     }
 }
 
+// Debug function to test authentication with unique email
+async function debugAuth() {
+    try {
+        console.log('🔍 Testing authentication...');
+        
+        // Use unique email with timestamp
+        const timestamp = new Date().getTime();
+        const uniqueEmail = `test${timestamp}@example.com`;
+        
+        // Test register with unique email
+        const registerData = {
+            name: "Test User",
+            email: uniqueEmail,
+            password: "password123",
+            phone: "1234567890",
+            address: "123 Test Street"
+        };
+        
+        console.log('Registering with email:', uniqueEmail);
+        
+        const registerResponse = await fetch('https://tasselgroup-back.onrender.com/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(registerData)
+        });
+        
+        console.log('Register response status:', registerResponse.status);
+        const registerResult = await registerResponse.json();
+        console.log('Register result:', registerResult);
+        
+        // If registration successful, test login
+        if (registerResponse.ok) {
+            console.log('✅ Registration successful, testing login...');
+            
+            const loginData = {
+                email: uniqueEmail,
+                password: "password123"
+            };
+            
+            const loginResponse = await fetch('https://tasselgroup-back.onrender.com/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(loginData)
+            });
+            
+            console.log('Login response status:', loginResponse.status);
+            const loginResult = await loginResponse.json();
+            console.log('Login result:', loginResult);
+        }
+        
+    } catch (error) {
+        console.error('Auth debug error:', error);
+    }
+}
+
+// Check authentication status
+function checkAuthStatus() {
+    const token = localStorage.getItem('token');
+    const currentUser = localStorage.getItem('currentUser');
+    
+    console.log('🔐 Authentication Status:');
+    console.log('Token exists:', !!token);
+    console.log('Token value:', token ? `${token.substring(0, 20)}...` : 'None');
+    console.log('Current user:', currentUser ? JSON.parse(currentUser) : 'None');
+    console.log('API Base:', API_BASE);
+    
+    return !!token;
+}
+
+
 // Debug function to check all required elements
 function debugElements() {
     const requiredElements = [
@@ -100,12 +170,66 @@ async function debugAPIResponses() {
     }
 }
 
+// Debug booking creation WITH authentication
+async function debugBooking() {
+    try {
+        console.log('🔍 Debugging booking creation...');
+        
+        // Check if we're logged in
+        if (!checkAuthStatus()) {
+            console.log('❌ Not logged in. Please login first.');
+            return;
+        }
+        
+        // First, get available services to use a real service ID
+        const services = await apiCall('/services');
+        console.log('Available services:', services);
+        
+        if (services.length === 0) {
+            console.log('❌ No services available to book');
+            return;
+        }
+        
+        // Use the first available service
+        const service = services[0];
+        
+        // Test booking data
+        const testBooking = {
+            service: service._id,
+            date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
+            time: "14:00",
+            specialRequests: "Test booking from debug"
+        };
+        
+        console.log('Test booking data:', testBooking);
+        
+        // Use apiCall to ensure authentication header is sent
+        const result = await apiCall('/bookings', {
+            method: 'POST',
+            body: JSON.stringify(testBooking)
+        });
+        
+        console.log('✅ Booking created successfully:', result);
+        
+    } catch (error) {
+        console.error('❌ Booking debug error:', error);
+        
+        if (error.message.includes('401')) {
+            console.log('💡 Tip: You need to be logged in to create bookings.');
+            console.log('💡 Try logging in with: testExistingUsers()');
+        }
+    }
+}
+
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Initializing Tassel Group Application');
     debugElements(); // Add this line
     debugAPIResponses();
+    debugAuth();
+    debugBooking();
+    checkAuthStatus();
     
     // Debug: Check what forms exist
     console.log('Forms check:');
@@ -373,15 +497,25 @@ function addToCart(productId, productName, price) {
     alert(`${productName} added to cart!`);
 }
 
+// Update the updateCartDisplay function with safe checks
 function updateCartDisplay() {
     const cartItems = document.getElementById('cartItems');
-    cartItems.innerHTML = '';
-
-    if (cart.length === 0) {
-        cartItems.innerHTML = '<p>Your cart is empty</p>';
+    const cartSection = document.getElementById('cartSection');
+    
+    // Safe check for elements
+    if (!cartItems || !cartSection) {
+        console.warn('Cart elements not found in DOM');
         return;
     }
-
+    
+    cartItems.innerHTML = '';
+    
+    if (cart.length === 0) {
+        cartItems.innerHTML = '<p>Your cart is empty</p>';
+        cartSection.style.display = 'none';
+        return;
+    }
+    
     let total = 0;
     cart.forEach((item, index) => {
         total += item.price * item.quantity;
@@ -396,13 +530,15 @@ function updateCartDisplay() {
             </div>
         `;
     });
-
+    
     cartItems.innerHTML += `
         <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
             <strong>Total</strong>
             <strong>R ${total}</strong>
         </div>
     `;
+    
+    cartSection.style.display = 'block';
 }
 
 function removeFromCart(index) {
@@ -529,48 +665,79 @@ async function loadServices() {
     }
 }
 
-
+// Update bookService function with safe checks
 function bookService(serviceId, serviceName, price, duration) {
     if (!currentUser) {
         alert('Please log in to book services');
         showSection('login');
         return;
     }
-
+    
     currentBooking = { serviceId, name: serviceName, price, duration };
-    document.getElementById('serviceName').value = serviceName;
-    document.getElementById('bookingForm').style.display = 'block';
-
-    document.getElementById('bookingForm').scrollIntoView({ behavior: 'smooth' });
+    
+    const serviceNameInput = document.getElementById('serviceName');
+    const bookingForm = document.getElementById('bookingForm');
+    
+    // Safe check for elements
+    if (serviceNameInput && bookingForm) {
+        serviceNameInput.value = serviceName;
+        bookingForm.style.display = 'block';
+        bookingForm.scrollIntoView({ behavior: 'smooth' });
+    } else {
+        console.warn('Booking form elements not found');
+    }
 }
 
 async function confirmBooking(e) {
     e.preventDefault();
-
+    
+    if (!currentBooking) {
+        alert('No service selected for booking');
+        return;
+    }
+    
     const date = document.getElementById('bookingDate').value;
     const time = document.getElementById('bookingTime').value;
     const specialRequests = document.getElementById('specialRequests').value;
-
+    
+    // Validate required fields
+    if (!date || !time) {
+        alert('Please select both date and time for your booking');
+        return;
+    }
+    
     try {
         const bookingData = {
             service: currentBooking.serviceId,
             date,
             time,
-            specialRequests
+            specialRequests: specialRequests || ''
         };
-
+        
+        console.log('Sending booking data:', bookingData);
+        
         await apiCall('/bookings', {
             method: 'POST',
             body: JSON.stringify(bookingData)
         });
-
+        
+        // Reset form
         document.getElementById('bookingDetailsForm').reset();
         document.getElementById('bookingForm').style.display = 'none';
         currentBooking = null;
-
+        
         alert('Booking confirmed! We look forward to seeing you.');
+        
     } catch (error) {
-        alert('Failed to create booking: ' + error.message);
+        console.error('Booking error details:', error);
+        
+        if (error.message.includes('500')) {
+            alert('Server error while creating booking. Please try again later.');
+        } else if (error.message.includes('400')) {
+            alert('Invalid booking data. Please check your information.');
+        } else {
+            alert('Failed to create booking: ' + error.message);
+        }
     }
 }
 
@@ -662,18 +829,27 @@ async function loadGiftPackages() {
     }
 }
 
+// Update customizeGift function with safe checks
 function customizeGift(giftId, giftName) {
     if (!currentUser) {
         alert('Please log in to create gift packages');
         showSection('login');
         return;
     }
-
+    
     currentGift = { giftId, name: giftName };
-    document.getElementById('giftPackage').value = giftName;
-    document.getElementById('giftCustomization').style.display = 'block';
-
-    document.getElementById('giftCustomization').scrollIntoView({ behavior: 'smooth' });
+    
+    const giftPackageInput = document.getElementById('giftPackage');
+    const giftCustomization = document.getElementById('giftCustomization');
+    
+    // Safe check for elements
+    if (giftPackageInput && giftCustomization) {
+        giftPackageInput.value = giftName;
+        giftCustomization.style.display = 'block';
+        giftCustomization.scrollIntoView({ behavior: 'smooth' });
+    } else {
+        console.warn('Gift customization elements not found');
+    }
 }
 
 async function createGift(e) {
@@ -783,6 +959,162 @@ async function loadAdminDashboard() {
 
     } catch (error) {
         console.error('Failed to load admin dashboard:', error);
+    }
+}
+
+// ===== ADMIN MODAL FUNCTIONS =====
+async function showAdminModal(action) {
+    try {
+        const modal = new bootstrap.Modal(document.getElementById('adminModal'));
+        const modalTitle = document.getElementById('adminModalTitle');
+        const modalBody = document.getElementById('adminModalBody');
+        
+        if (!modal || !modalTitle || !modalBody) {
+            console.warn('Admin modal elements not found');
+            return;
+        }
+
+        if (action === 'addService') {
+            modalTitle.textContent = 'Add New Service';
+            modalBody.innerHTML = `
+                <form id="addServiceForm">
+                    <div class="mb-3">
+                        <label for="serviceName" class="form-label">Service Name</label>
+                        <input type="text" class="form-control" id="serviceName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="serviceDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="serviceDescription" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="servicePrice" class="form-label">Price (R)</label>
+                        <input type="number" class="form-control" id="servicePrice" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="serviceDuration" class="form-label">Duration</label>
+                        <input type="text" class="form-control" id="serviceDuration" placeholder="e.g., 60 min" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="serviceCategory" class="form-label">Category</label>
+                        <select class="form-control" id="serviceCategory" required>
+                            <option value="">Select a category</option>
+                            <option value="massage">Massage</option>
+                            <option value="skincare">Skincare</option>
+                            <option value="nails">Nails</option>
+                            <option value="wellness">Wellness</option>
+                            <option value="haircare">Hair Care</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Service</button>
+                </form>
+            `;
+            
+            document.getElementById('addServiceForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                await addNewService();
+                modal.hide();
+            });
+            
+        } else if (action === 'addProduct') {
+            modalTitle.textContent = 'Add New Product';
+            modalBody.innerHTML = `
+                <form id="addProductForm">
+                    <div class="mb-3">
+                        <label for="productName" class="form-label">Product Name</label>
+                        <input type="text" class="form-control" id="productName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="productDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="productDescription" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="productPrice" class="form-label">Price (R)</label>
+                        <input type="number" class="form-control" id="productPrice" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="productCategory" class="form-label">Category</label>
+                        <select class="form-control" id="productCategory" required>
+                            <option value="">Select a category</option>
+                            <option value="skincare">Skincare</option>
+                            <option value="haircare">Hair Care</option>
+                            <option value="wellness">Wellness</option>
+                            <option value="makeup">Makeup</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="productImage" class="form-label">Image URL</label>
+                        <input type="url" class="form-control" id="productImage" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Product</button>
+                </form>
+            `;
+            
+            document.getElementById('addProductForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                await addNewProduct();
+                modal.hide();
+            });
+            
+        } else if (action === 'addVoucher') {
+            // For now, just show a message since we need staff data
+            modalTitle.textContent = 'Create Voucher Code';
+            modalBody.innerHTML = `
+                <div class="alert alert-info">
+                    <p>Voucher creation requires staff data from the backend.</p>
+                    <p>This feature will be available once the backend is fully configured.</p>
+                </div>
+            `;
+        }
+        
+        modal.show();
+        
+    } catch (error) {
+        console.error('Error showing admin modal:', error);
+        alert('Unable to load admin controls: ' + error.message);
+    }
+}
+
+async function addNewService() {
+    try {
+        const name = document.getElementById('serviceName').value;
+        const description = document.getElementById('serviceDescription').value;
+        const price = parseInt(document.getElementById('servicePrice').value);
+        const duration = document.getElementById('serviceDuration').value;
+        const category = document.getElementById('serviceCategory').value;
+        
+        await apiCall('/services', {
+            method: 'POST',
+            body: JSON.stringify({ name, description, price, duration, category })
+        });
+        
+        // Reload services
+        loadServices();
+        alert('Service added successfully!');
+        
+    } catch (error) {
+        alert('Failed to add service: ' + error.message);
+    }
+}
+
+async function addNewProduct() {
+    try {
+        const name = document.getElementById('productName').value;
+        const description = document.getElementById('productDescription').value;
+        const price = parseInt(document.getElementById('productPrice').value);
+        const category = document.getElementById('productCategory').value;
+        const image = document.getElementById('productImage').value;
+        
+        await apiCall('/products', {
+            method: 'POST',
+            body: JSON.stringify({ name, description, price, category, image })
+        });
+        
+        // Reload products
+        loadProducts();
+        alert('Product added successfully!');
+        
+    } catch (error) {
+        alert('Failed to add product: ' + error.message);
     }
 }
 

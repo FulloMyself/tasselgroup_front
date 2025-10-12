@@ -79,6 +79,13 @@
                     <div class="row" id="productsContainer">
                         <!-- Products will load here -->
                     </div>
+
+                    <!-- Add this Cart Section -->
+                    <div class="mt-5" id="cartSection" style="display: none;">
+                        <h3>Your Cart</h3>
+                        <div id="cartItems" class="mb-3"></div>
+                        <button class="btn btn-success" onclick="checkout()">Proceed to Checkout</button>
+                    </div>
                 </div>
             </section>
 
@@ -89,15 +96,77 @@
                     <div class="row" id="servicesContainer">
                         <!-- Services will load here -->
                     </div>
+
+                    <!-- Add this Booking Form -->
+                    <div class="mt-5" id="bookingForm" style="display: none;">
+                        <h3>Complete Your Booking</h3>
+                        <form id="bookingDetailsForm">
+                            <div class="mb-3">
+                                <label for="serviceName" class="form-label">Service</label>
+                                <input type="text" class="form-control" id="serviceName" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label for="bookingDate" class="form-label">Date</label>
+                                <input type="date" class="form-control" id="bookingDate" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="bookingTime" class="form-label">Time</label>
+                                <select class="form-control" id="bookingTime" required>
+                                    <option value="">Select a time</option>
+                                    <option value="09:00">09:00 AM</option>
+                                    <option value="10:00">10:00 AM</option>
+                                    <option value="11:00">11:00 AM</option>
+                                    <option value="12:00">12:00 PM</option>
+                                    <option value="14:00">02:00 PM</option>
+                                    <option value="15:00">03:00 PM</option>
+                                    <option value="16:00">04:00 PM</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="specialRequests" class="form-label">Special Requests (Optional)</label>
+                                <textarea class="form-control" id="specialRequests" rows="3"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-success">Confirm Booking</button>
+                        </form>
+                    </div>
                 </div>
             </section>
 
             <!-- Gifts Section -->
+            <!-- Add this inside the Gifts section, after the gift packages container -->
             <section id="gifts" class="content-section" style="display: none;">
                 <div class="container my-5">
                     <h2 class="mb-4">Custom Gift Services</h2>
                     <div class="row" id="giftPackagesContainer">
                         <!-- Gift packages will load here -->
+                    </div>
+
+                    <!-- Add this Gift Customization Form -->
+                    <div class="mt-5" id="giftCustomization" style="display: none;">
+                        <h3>Customize Your Gift</h3>
+                        <form id="giftCustomizationForm">
+                            <div class="mb-3">
+                                <label for="giftPackage" class="form-label">Selected Package</label>
+                                <input type="text" class="form-control" id="giftPackage" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label for="recipientName" class="form-label">Recipient Name</label>
+                                <input type="text" class="form-control" id="recipientName" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="recipientEmail" class="form-label">Recipient Email</label>
+                                <input type="email" class="form-control" id="recipientEmail" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="giftMessage" class="form-label">Personal Message</label>
+                                <textarea class="form-control" id="giftMessage" rows="3" required></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="deliveryDate" class="form-label">Preferred Delivery Date</label>
+                                <input type="date" class="form-control" id="deliveryDate" required>
+                            </div>
+                            <button type="submit" class="btn btn-success">Create Gift</button>
+                        </form>
                     </div>
                 </div>
             </section>

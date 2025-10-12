@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,6 +15,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light sticky-top">
@@ -41,14 +43,19 @@
                 </ul>
                 <ul class="navbar-nav">
                     <li class="nav-item dropdown" id="userDropdown" style="display: none;">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                            data-bs-toggle="dropdown">
                             <div class="user-avatar d-inline-flex me-2" id="userAvatar">U</div>
                             <span id="userName">User</span>
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#" onclick="showSection('profile')"><i class="fas fa-user me-2"></i>Profile</a></li>
-                            <li id="dashboardLink" style="display: none;"><a class="dropdown-item" href="#" onclick="showSection('dashboard')"><i class="fas fa-chart-line me-2"></i>Dashboard</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="showSection('profile')"><i
+                                        class="fas fa-user me-2"></i>Profile</a></li>
+                            <li id="dashboardLink" style="display: none;"><a class="dropdown-item" href="#"
+                                    onclick="showSection('dashboard')"><i
+                                        class="fas fa-chart-line me-2"></i>Dashboard</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="logout()"><i
+                                        class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                         </ul>
                     </li>
                     <li class="nav-item" id="loginLink">
@@ -67,10 +74,11 @@
                 <div class="container">
                     <h1 class="display-4">Welcome to Tassel Group</h1>
                     <p class="lead">Your premier destination for beauty, wellness, and self-care</p>
-                    <a href="#" class="btn btn-primary btn-lg mt-3" onclick="showSection('shop')">Explore Our Products</a>
+                    <a href="#" class="btn btn-primary btn-lg mt-3" onclick="showSection('shop')">Explore Our
+                        Products</a>
                 </div>
             </div>
-            
+
             <div class="container my-5">
                 <div class="row">
                     <div class="col-md-4 text-center">
@@ -102,10 +110,17 @@
                 <div class="row" id="productsContainer">
                     <!-- Products will load here -->
                 </div>
-                
+
                 <div class="mt-5" id="cartSection" style="display: none;">
                     <h3>Your Cart</h3>
                     <div id="cartItems" class="mb-3"></div>
+                    <div class="mb-3" id="checkoutStaffSection" style="display: none;">
+                        <label for="checkoutStaff" class="form-label">Staff Member Assisting You</label>
+                        <select class="form-control" id="checkoutStaff">
+                            <option value="">Select staff member (optional)</option>
+                            <!-- Staff options will be loaded dynamically -->
+                        </select>
+                    </div>
                     <button class="btn btn-success" onclick="checkout()">Proceed to Checkout</button>
                 </div>
             </div>
@@ -118,7 +133,7 @@
                 <div class="row" id="servicesContainer">
                     <!-- Services will load here -->
                 </div>
-                
+
                 <div class="mt-5" id="bookingForm" style="display: none;">
                     <h3>Complete Your Booking</h3>
                     <form id="bookingDetailsForm">
@@ -143,6 +158,13 @@
                                 <option value="16:00">04:00 PM</option>
                             </select>
                         </div>
+                        <div class="mb-3" id="staffSelectionSection" style="display: none;">
+                            <label for="assignedStaff" class="form-label">Preferred Staff Member</label>
+                            <select class="form-control" id="assignedStaff" required>
+                                <option value="">Select a staff member</option>
+                                <!-- Staff options will be loaded dynamically -->
+                            </select>
+                        </div>
                         <div class="mb-3">
                             <label for="specialRequests" class="form-label">Special Requests (Optional)</label>
                             <textarea class="form-control" id="specialRequests" rows="3"></textarea>
@@ -158,11 +180,11 @@
             <div class="container my-5">
                 <h2 class="mb-4">Custom Gift Services</h2>
                 <p class="lead">Create the perfect gift package for your loved ones with our customizable options.</p>
-                
+
                 <div class="row" id="giftPackagesContainer">
                     <!-- Gift packages will load here -->
                 </div>
-                
+
                 <div class="mt-5" id="giftCustomization" style="display: none;">
                     <h3>Customize Your Gift</h3>
                     <form id="giftCustomizationForm">
@@ -205,7 +227,7 @@
                             <a class="nav-link" id="register-tab" data-bs-toggle="tab" href="#registerForm">Register</a>
                         </li>
                     </ul>
-                    
+
                     <div class="tab-content">
                         <div class="tab-pane fade show active" id="loginForm">
                             <form id="loginFormElement">
@@ -258,7 +280,8 @@
                     <div class="col-md-4">
                         <div class="card">
                             <div class="card-body text-center">
-                                <div class="user-avatar mx-auto mb-3" style="width: 80px; height: 80px; font-size: 1.5rem;" id="profileAvatar">U</div>
+                                <div class="user-avatar mx-auto mb-3"
+                                    style="width: 80px; height: 80px; font-size: 1.5rem;" id="profileAvatar">U</div>
                                 <h5 id="profileName">User Name</h5>
                                 <p id="profileEmail">user@example.com</p>
                                 <p id="profileRole" class="badge bg-primary">Customer</p>
@@ -288,9 +311,9 @@
                                     </div>
                                     <button type="submit" class="btn btn-primary">Update Profile</button>
                                 </form>
-                                
+
                                 <hr class="my-4">
-                                
+
                                 <h5 class="card-title">Change Password</h5>
                                 <form id="passwordForm">
                                     <div class="mb-3">
@@ -318,7 +341,7 @@
         <section id="dashboard" class="content-section" style="display: none;">
             <div class="container my-5">
                 <h2 class="mb-4">Dashboard</h2>
-                
+
                 <!-- Staff Dashboard -->
                 <div id="staffDashboard" style="display: none;">
                     <div class="row">
@@ -351,7 +374,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="row mt-4">
                         <div class="col-md-6">
                             <div class="card">
@@ -396,7 +419,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Admin Dashboard -->
                 <div id="adminDashboard" style="display: none;">
                     <div class="admin-controls mb-4">
@@ -419,7 +442,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="row">
                         <div class="col-md-3">
                             <div class="dashboard-card text-center">
@@ -450,7 +473,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="row mt-4">
                         <div class="col-md-8">
                             <div class="card">
@@ -477,7 +500,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="row mt-4">
                         <div class="col-md-6">
                             <div class="card">
@@ -559,4 +582,5 @@
         </div>
     </div>
 </body>
+
 </html>

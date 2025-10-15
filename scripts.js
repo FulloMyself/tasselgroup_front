@@ -39,25 +39,40 @@ async function apiCall(endpoint, options = {}) {
         ...options
     };
 
-    // Add body to config if it exists and method is not GET/HEAD
+    // Add body to config if it exists
     if (options.body && !['GET', 'HEAD'].includes(options.method?.toUpperCase() || 'GET')) {
-        config.body = options.body;
+        config.body = JSON.stringify(options.body);
     }
 
     try {
         console.log(`📡 Making API call to: ${API_BASE}${endpoint}`);
         const response = await fetch(`${API_BASE}${endpoint}`, config);
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        // Handle non-JSON responses
+        const contentType = response.headers.get('content-type');
+        let data;
+
+        if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+        } else {
+            const text = await response.text();
+            throw new Error(`Server returned non-JSON response: ${text}`);
         }
 
-        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || `HTTP error! status: ${response.status}`);
+        }
+
         return data;
 
     } catch (error) {
         console.error(`❌ API call failed: ${error.message}`);
+
+        // Show user-friendly error messages
+        if (error.message.includes('Failed to fetch')) {
+            throw new Error('Cannot connect to server. Please check your internet connection and try again.');
+        }
+
         throw error;
     }
 }
@@ -89,8 +104,12 @@ async function handleLogin(e) {
     try {
         const data = await apiCall('/auth/login', {
             method: 'POST',
-            body: JSON.stringify({ email, password })
+            body: { email, password }
         });
+
+        if (!data.token || !data.user) {
+            throw new Error('Invalid response from server');
+        }
 
         localStorage.setItem('token', data.token);
         currentUser = data.user;
@@ -99,9 +118,9 @@ async function handleLogin(e) {
         showSection('home');
 
         document.getElementById('loginFormElement').reset();
-        alert('Login successful!');
+        showNotification('Login successful!', 'success');
     } catch (error) {
-        alert('Login failed: ' + error.message);
+        showNotification('Login failed: ' + error.message, 'error');
     }
 }
 
@@ -117,8 +136,12 @@ async function handleRegister(e) {
     try {
         const data = await apiCall('/auth/register', {
             method: 'POST',
-            body: JSON.stringify({ name, email, password, phone, address })
+            body: { name, email, password, phone, address }
         });
+
+        if (!data.token || !data.user) {
+            throw new Error('Invalid response from server');
+        }
 
         localStorage.setItem('token', data.token);
         currentUser = data.user;
@@ -127,9 +150,9 @@ async function handleRegister(e) {
         showSection('home');
 
         document.getElementById('registerFormElement').reset();
-        alert('Registration successful!');
+        showNotification('Registration successful!', 'success');
     } catch (error) {
-        alert('Registration failed: ' + error.message);
+        showNotification('Registration failed: ' + error.message, 'error');
     }
 }
 
@@ -155,7 +178,7 @@ function updateUIForUser() {
 
         document.getElementById('profileFullName').value = currentUser.name;
         document.getElementById('profileEmailInput').value = currentUser.email;
-        document.getElementById('profilePhone').value = currentUser.phone;
+        document.getElementById('profilePhone').value = currentUser.phone || '';
         document.getElementById('profileAddress').value = currentUser.address || '';
     } else {
         document.getElementById('userDropdown').style.display = 'none';
@@ -170,7 +193,7 @@ function logout() {
     cart = [];
     updateUIForUser();
     showSection('home');
-    alert('You have been logged out.');
+    showNotification('You have been logged out.', 'info');
 }
 
 // ===== SECTION MANAGEMENT =====
@@ -198,28 +221,10 @@ function showSection(sectionId) {
 // ===== PRODUCTS & SHOPPING =====
 async function loadProducts() {
     try {
-        const response = await apiCall('/products');
-
-        // Handle different response formats
-        let products = [];
-
-        if (Array.isArray(response)) {
-            // Response is directly an array
-            products = response;
-        } else if (response.products && Array.isArray(response.products)) {
-            // Response is { products: [...] }
-            products = response.products;
-        } else if (response.data && Array.isArray(response.data)) {
-            // Response is { data: [...] }
-            products = response.data;
-        } else {
-            console.warn('Unexpected API response format for products:', response);
-            products = [];
-        }
-
+        const data = await apiCall('/products');
+        const products = data.products || data.data || data || [];
         const container = document.getElementById('productsContainer');
 
-        // Safe check for container
         if (!container) {
             console.warn('⚠️ productsContainer not found in DOM');
             return;
@@ -250,7 +255,7 @@ async function loadProducts() {
                             <h5 class="card-title">${product.name}</h5>
                             <p class="card-text flex-grow-1">${product.description || 'No description available'}</p>
                             <p class="card-text"><strong>R ${product.price || 0}</strong></p>
-                            <button class="btn btn-primary mt-auto" onclick="addToCart('${product._id || product.id}', '${(product.name || '').replace(/'/g, "\\'")}', ${product.price || 0})">
+                            <button class="btn btn-primary mt-auto" onclick="addToCart('${product._id}', '${(product.name || '').replace(/'/g, "\\'")}', ${product.price || 0})">
                                 Add to Cart
                             </button>
                         </div>
@@ -277,15 +282,14 @@ async function loadProducts() {
     }
 }
 
-// ===== UPDATED CART & CHECKOUT FUNCTIONS =====
+// ===== CART & CHECKOUT FUNCTIONS =====
 function addToCart(productId, productName, price) {
     if (!currentUser) {
-        alert('Please log in to add items to your cart');
+        showNotification('Please log in to add items to your cart', 'warning');
         showSection('login');
         return;
     }
 
-    // Check if product already in cart
     const existingItem = cart.find(item => item.productId === productId);
     if (existingItem) {
         existingItem.quantity += 1;
@@ -295,61 +299,29 @@ function addToCart(productId, productName, price) {
 
     updateCartDisplay();
     document.getElementById('cartSection').style.display = 'block';
-    
-    // Load staff dropdown when cart becomes visible
-    if (cart.length === 1) { // Only load once when first item is added
-        populateCartStaffDropdown();
-    }
-    
-    alert(`${productName} added to cart!`);
-}
 
-// Load staff dropdown specifically for cart
-async function populateCartStaffDropdown() {
-    try {
-        const staffMembers = await loadStaffMembers();
-        const cartStaffDropdown = document.getElementById('cartStaff');
-        
-        if (cartStaffDropdown && staffMembers.length > 0) {
-            // Clear existing options except the first one
-            while (cartStaffDropdown.options.length > 1) {
-                cartStaffDropdown.remove(1);
-            }
-            
-            // Add staff options
-            staffMembers.forEach(staff => {
-                const option = document.createElement('option');
-                option.value = staff._id;
-                option.textContent = `${staff.name} (${staff.role})`;
-                cartStaffDropdown.appendChild(option);
-            });
-            
-            console.log(`✅ Loaded ${staffMembers.length} staff members for cart`);
-        }
-    } catch (error) {
-        console.error('Failed to populate cart staff dropdown:', error);
-    }
+    showNotification(`${productName} added to cart!`, 'success');
 }
 
 function updateCartDisplay() {
     const cartItems = document.getElementById('cartItems');
     const cartSection = document.getElementById('cartSection');
     const cartStaffSection = document.getElementById('cartStaffSection');
-    
+
     if (!cartItems || !cartSection) {
         console.warn('Cart elements not found in DOM');
         return;
     }
-    
+
     cartItems.innerHTML = '';
-    
+
     if (cart.length === 0) {
         cartItems.innerHTML = '<p>Your cart is empty</p>';
         cartSection.style.display = 'none';
         if (cartStaffSection) cartStaffSection.style.display = 'none';
         return;
     }
-    
+
     let total = 0;
     cart.forEach((item, index) => {
         const itemTotal = item.price * item.quantity;
@@ -373,14 +345,14 @@ function updateCartDisplay() {
             </div>
         `;
     });
-    
+
     cartItems.innerHTML += `
         <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
             <strong>Total</strong>
             <strong>R ${total}</strong>
         </div>
     `;
-    
+
     cartSection.style.display = 'block';
     if (cartStaffSection) cartStaffSection.style.display = 'block';
 }
@@ -409,18 +381,17 @@ function removeFromCart(index) {
 
 async function checkout() {
     if (cart.length === 0) {
-        alert('Your cart is empty');
+        showNotification('Your cart is empty', 'warning');
         return;
     }
 
     if (!currentUser) {
-        alert('Please log in to checkout');
+        showNotification('Please log in to checkout', 'warning');
         showSection('login');
         return;
     }
 
     try {
-        // Get staff assignment from cart
         const cartStaffDropdown = document.getElementById('cartStaff');
         const staffId = cartStaffDropdown ? cartStaffDropdown.value : null;
 
@@ -433,28 +404,27 @@ async function checkout() {
             totalAmount: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
             shippingAddress: currentUser.address,
             paymentMethod: 'card',
-            status: 'paid', // Mark as paid immediately
-            processedBy: staffId || null // Include staff assignment
+            status: 'paid',
+            processedBy: staffId || null
         };
 
         console.log('🛒 Processing order with data:', orderData);
 
         const result = await apiCall('/orders', {
             method: 'POST',
-            body: JSON.stringify(orderData)
+            body: orderData
         });
 
         // Clear cart and reset UI
         cart = [];
         updateCartDisplay();
         document.getElementById('cartSection').style.display = 'none';
-        
-        // Reset staff selection
+
         if (cartStaffDropdown) {
             cartStaffDropdown.value = '';
         }
 
-        alert('Order placed successfully! Thank you for your purchase.');
+        showNotification('Order placed successfully! Thank you for your purchase.', 'success');
 
         // Refresh dashboard if admin/staff is viewing it
         if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) {
@@ -462,14 +432,15 @@ async function checkout() {
         }
 
     } catch (error) {
-        alert('Failed to place order: ' + error.message);
+        showNotification('Failed to place order: ' + error.message, 'error');
     }
 }
 
 // ===== SERVICES & BOOKINGS =====
 async function loadServices() {
     try {
-        const services = await apiCall('/services');
+        const data = await apiCall('/services');
+        const services = data.services || data.data || data || [];
         const container = document.getElementById('servicesContainer');
 
         if (!container) {
@@ -479,7 +450,7 @@ async function loadServices() {
 
         container.innerHTML = '';
 
-        if (!services || services.length === 0) {
+        if (services.length === 0) {
             container.innerHTML = `
                 <div class="col-12 text-center">
                     <div class="alert alert-info">
@@ -529,7 +500,7 @@ async function loadServices() {
 
 async function bookService(serviceId, serviceName, price, duration) {
     if (!currentUser) {
-        alert('Please log in to book services');
+        showNotification('Please log in to book services', 'warning');
         showSection('login');
         return;
     }
@@ -543,10 +514,9 @@ async function bookService(serviceId, serviceName, price, duration) {
     if (serviceNameInput && bookingForm) {
         serviceNameInput.value = serviceName;
 
-        // Load and populate staff dropdown
+        // Load staff dropdown
         await populateStaffDropdowns();
 
-        // Show staff selection section
         if (staffSection) {
             staffSection.style.display = 'block';
         }
@@ -562,7 +532,7 @@ async function confirmBooking(e) {
     e.preventDefault();
 
     if (!currentBooking) {
-        alert('No service selected for booking');
+        showNotification('No service selected for booking', 'error');
         return;
     }
 
@@ -572,7 +542,7 @@ async function confirmBooking(e) {
     const specialRequests = document.getElementById('specialRequests').value;
 
     if (!date || !time || !assignedStaff) {
-        alert('Please select date, time, and staff member for your booking');
+        showNotification('Please select date, time, and staff member for your booking', 'warning');
         return;
     }
 
@@ -588,7 +558,7 @@ async function confirmBooking(e) {
 
         const result = await apiCall('/bookings', {
             method: 'POST',
-            body: JSON.stringify(bookingData)
+            body: bookingData
         });
 
         document.getElementById('bookingDetailsForm').reset();
@@ -596,18 +566,19 @@ async function confirmBooking(e) {
         document.getElementById('staffSelectionSection').style.display = 'none';
         currentBooking = null;
 
-        alert('Booking confirmed! We look forward to seeing you.');
+        showNotification('Booking confirmed! We look forward to seeing you.', 'success');
 
     } catch (error) {
         console.error('Booking error details:', error);
-        alert('Failed to create booking: ' + error.message);
+        showNotification('Failed to create booking: ' + error.message, 'error');
     }
 }
 
-// ===== GIFT PACKAGES - UPDATED =====
+// ===== GIFT PACKAGES =====
 async function loadGiftPackages() {
     try {
-        const giftPackages = await apiCall('/gift-packages');
+        const data = await apiCall('/gift-packages');
+        const giftPackages = data.giftPackages || data.data || data || [];
         const container = document.getElementById('giftPackagesContainer');
 
         if (!container) {
@@ -617,7 +588,7 @@ async function loadGiftPackages() {
 
         container.innerHTML = '';
 
-        if (!giftPackages || giftPackages.length === 0) {
+        if (giftPackages.length === 0) {
             container.innerHTML = `
                 <div class="col-12 text-center">
                     <div class="alert alert-info">
@@ -678,7 +649,7 @@ async function loadGiftPackages() {
 
 function customizeGift(giftId, giftName) {
     if (!currentUser) {
-        alert('Please log in to create gift packages');
+        showNotification('Please log in to create gift packages', 'warning');
         showSection('login');
         return;
     }
@@ -691,15 +662,14 @@ function customizeGift(giftId, giftName) {
 
     if (giftPackageInput && giftCustomization) {
         giftPackageInput.value = giftName;
-        
+
         // Load staff dropdown for gift assignment
         populateGiftStaffDropdown();
-        
-        // Show staff selection section
+
         if (giftStaffSection) {
             giftStaffSection.style.display = 'block';
         }
-        
+
         giftCustomization.style.display = 'block';
         giftCustomization.scrollIntoView({ behavior: 'smooth' });
     } else {
@@ -707,26 +677,23 @@ function customizeGift(giftId, giftName) {
     }
 }
 
-// Load staff dropdown specifically for gifts
 async function populateGiftStaffDropdown() {
     try {
         const staffMembers = await loadStaffMembers();
         const giftStaffDropdown = document.getElementById('giftStaff');
-        
+
         if (giftStaffDropdown && staffMembers.length > 0) {
-            // Clear existing options except the first one
             while (giftStaffDropdown.options.length > 1) {
                 giftStaffDropdown.remove(1);
             }
-            
-            // Add staff options
+
             staffMembers.forEach(staff => {
                 const option = document.createElement('option');
                 option.value = staff._id;
                 option.textContent = `${staff.name} (${staff.role})`;
                 giftStaffDropdown.appendChild(option);
             });
-            
+
             console.log(`✅ Loaded ${staffMembers.length} staff members for gift assignment`);
         }
     } catch (error) {
@@ -743,9 +710,8 @@ async function createGift(e) {
     const deliveryDate = document.getElementById('deliveryDate').value;
     const assignedStaff = document.getElementById('giftStaff').value;
 
-    // Validate required fields
     if (!recipientName || !recipientEmail || !deliveryDate) {
-        alert('Please fill in all required fields: Recipient Name, Recipient Email, and Delivery Date');
+        showNotification('Please fill in all required fields: Recipient Name, Recipient Email, and Delivery Date', 'warning');
         return;
     }
 
@@ -761,10 +727,10 @@ async function createGift(e) {
 
         const result = await apiCall('/gift-orders', {
             method: 'POST',
-            body: JSON.stringify(giftOrderData)
+            body: giftOrderData
         });
 
-        alert(`Gift package created for ${recipientName}! An email will be sent to ${recipientEmail} with the gift details.`);
+        showNotification(`Gift package created for ${recipientName}! An email will be sent to ${recipientEmail} with the gift details.`, 'success');
 
         // Reset form and hide customization
         document.getElementById('giftCustomizationForm').reset();
@@ -773,129 +739,15 @@ async function createGift(e) {
         currentGift = null;
 
     } catch (error) {
-        alert('Failed to create gift order: ' + error.message);
+        showNotification('Failed to create gift order: ' + error.message, 'error');
     }
 }
 
-// ===== PROFILE MANAGEMENT =====
-async function updateProfile(e) {
-    e.preventDefault();
-
-    const name = document.getElementById('profileFullName').value;
-    const email = document.getElementById('profileEmailInput').value;
-    const phone = document.getElementById('profilePhone').value;
-    const address = document.getElementById('profileAddress').value;
-
-    try {
-        const updatedUser = await apiCall('/users/profile', {
-            method: 'PUT',
-            body: JSON.stringify({ name, email, phone, address })
-        });
-
-        currentUser = { ...currentUser, ...updatedUser };
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        updateUIForUser();
-
-        alert('Profile updated successfully!');
-    } catch (error) {
-        alert('Failed to update profile: ' + error.message);
-    }
-}
-
-async function changePassword(e) {
-    e.preventDefault();
-
-    const currentPassword = document.getElementById('currentPassword').value;
-    const newPassword = document.getElementById('newPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
-
-    if (newPassword !== confirmPassword) {
-        alert('New passwords do not match');
-        return;
-    }
-
-    try {
-        await apiCall('/users/change-password', {
-            method: 'PUT',
-            body: JSON.stringify({ currentPassword, newPassword })
-        });
-
-        document.getElementById('passwordForm').reset();
-        alert('Password changed successfully!');
-    } catch (error) {
-        alert('Failed to change password: ' + error.message);
-    }
-}
-
-// ===== STAFF MANAGEMENT FUNCTIONS =====
-async function loadStaffMembers() {
-    try {
-        // First try the specific staff endpoint
-        const staff = await apiCall('/users/staff');
-        return staff || [];
-    } catch (error) {
-        console.log('Staff endpoint not available, falling back to all users filter');
-        // Fallback: Get all users and filter for staff
-        try {
-            const allUsers = await apiCall('/users');
-            const staffMembers = allUsers.filter(user =>
-                user.role === 'staff' || user.role === 'admin'
-            );
-            console.log(`✅ Found ${staffMembers.length} staff members from all users`);
-            return staffMembers;
-        } catch (fallbackError) {
-            console.error('Failed to load staff members from all users:', fallbackError);
-            return [];
-        }
-    }
-}
-
-async function populateStaffDropdowns() {
-    try {
-        const staffMembers = await loadStaffMembers();
-        const staffDropdowns = [
-            document.getElementById('assignedStaff'),
-            document.getElementById('checkoutStaff'),
-            document.getElementById('voucherStaff')
-        ].filter(dropdown => dropdown !== null);
-
-        staffDropdowns.forEach(dropdown => {
-            if (dropdown) {
-                // Clear existing options except the first one
-                while (dropdown.options.length > 1) {
-                    dropdown.remove(1);
-                }
-
-                // Add staff options
-                if (staffMembers.length > 0) {
-                    staffMembers.forEach(staff => {
-                        const option = document.createElement('option');
-                        option.value = staff._id;
-                        option.textContent = `${staff.name} (${staff.role})`;
-                        dropdown.appendChild(option);
-                    });
-                } else {
-                    // Add a placeholder if no staff found
-                    const option = document.createElement('option');
-                    option.value = '';
-                    option.textContent = 'No staff members available';
-                    option.disabled = true;
-                    dropdown.appendChild(option);
-                }
-            }
-        });
-
-        console.log(`✅ Populated ${staffDropdowns.length} dropdowns with ${staffMembers.length} staff members`);
-        return staffMembers;
-    } catch (error) {
-        console.error('Failed to populate staff dropdowns:', error);
-        return [];
-    }
-}
-
-// ===== DASHBOARD FUNCTIONS - UPDATED FOR PAID ORDERS =====
+// ===== DASHBOARD FUNCTIONS =====
 async function loadDashboard() {
     if (!currentUser) return;
+
+    console.log('🚀 Loading dashboard for:', currentUser.role);
 
     if (currentUser.role === 'staff') {
         document.getElementById('staffDashboard').style.display = 'block';
@@ -908,28 +760,72 @@ async function loadDashboard() {
     }
 }
 
+async function loadAdminDashboard() {
+    try {
+        const data = await apiCall('/dashboard/admin');
+
+        console.log('📊 Admin dashboard data received:', data);
+
+        // Update stats with actual data
+        document.getElementById('totalUsers').textContent = data.stats?.totalUsers || 0;
+        document.getElementById('totalBookings').textContent = data.stats?.totalBookings || 0;
+        document.getElementById('totalProducts').textContent = data.stats?.totalOrders || data.stats?.totalProductsSold || 0;
+
+        // Use the totalRevenue from dashboard API
+        const totalRevenue = data.stats?.totalRevenue || 0;
+        document.getElementById('totalRevenue').textContent = 'R ' + totalRevenue;
+
+
+        console.log('💰 Total Revenue Updated:', totalRevenue);
+
+        // Add this after receiving the data but before creating charts
+        if (data.monthlyRevenue && data.monthlyRevenue.labels) {
+            // Reverse to show chronological order (oldest to newest)
+            data.monthlyRevenue.labels = data.monthlyRevenue.labels.reverse();
+            data.monthlyRevenue.data = data.monthlyRevenue.data.reverse();
+            console.log('🔄 Monthly revenue data reversed for proper chronological display');
+        }
+
+        // Load revenue chart
+        if (data.monthlyRevenue) {
+            createRevenueChart(data.monthlyRevenue);
+        }
+
+        // Load staff performance chart
+        if (data.staffPerformance) {
+            createStaffPerformanceChart(data.staffPerformance);
+        }
+
+        // Load popular services chart
+        if (data.popularServices) {
+            createServicesChart(data.popularServices);
+        }
+
+        // Load recent activity
+        updateRecentActivity(data.recentActivity || []);
+
+    } catch (error) {
+        console.error('Failed to load admin dashboard:', error);
+        showNotification('Failed to load dashboard data', 'error');
+    }
+}
+
 async function loadStaffDashboard() {
     try {
         const data = await apiCall('/dashboard/staff');
-
-        // If no specific dashboard endpoint, calculate from raw data
-        if (!data.stats) {
-            await loadFallbackStaffData();
-            return;
-        }
 
         document.getElementById('staffSales').textContent = data.stats?.totalSales || 0;
         document.getElementById('staffClients').textContent = data.stats?.totalClients || 0;
         document.getElementById('staffHours').textContent = data.stats?.totalHours || 0;
         document.getElementById('staffCommission').textContent = 'R ' + (data.stats?.totalCommission || 0);
 
-        // Load appointments
+        // Update appointments
         const appointmentsList = document.getElementById('staffAppointments');
         if (appointmentsList) {
-            if (data.appointments && data.appointments.length > 0) {
-                appointmentsList.innerHTML = data.appointments.map(apt => `
+            if (data.upcomingAppointments && data.upcomingAppointments.length > 0) {
+                appointmentsList.innerHTML = data.upcomingAppointments.map(apt => `
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                        ${apt.serviceName} - ${apt.clientName}
+                        ${apt.service?.name || 'Service'} - ${apt.user?.name || 'Customer'}
                         <span class="badge bg-primary rounded-pill">${new Date(apt.date).toLocaleDateString()}, ${apt.time}</span>
                     </li>
                 `).join('');
@@ -938,698 +834,51 @@ async function loadStaffDashboard() {
             }
         }
 
-        // Load recent sales
+        // Update recent sales
         const recentSalesList = document.getElementById('staffRecentSales');
         if (recentSalesList) {
             if (data.recentSales && data.recentSales.length > 0) {
                 recentSalesList.innerHTML = data.recentSales.map(sale => `
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                        ${sale.productName}
-                        <span class="badge bg-success rounded-pill">R ${sale.amount}</span>
+                        ${sale.description || 'Sale'}
+                        <span class="badge bg-success rounded-pill">R ${sale.amount || 0}</span>
                     </li>
                 `).join('');
             } else {
                 recentSalesList.innerHTML = '<li class="list-group-item">No recent sales</li>';
-            }
-        }
-
-        // Load vouchers
-        const vouchersContainer = document.getElementById('staffVouchers');
-        if (vouchersContainer) {
-            if (data.vouchers && data.vouchers.length > 0) {
-                vouchersContainer.innerHTML = data.vouchers.map(voucher => `
-                    <div class="col-md-6 mb-3">
-                        <div class="card">
-                            <div class="card-body">
-                                <h6 class="card-title">${voucher.code}</h6>
-                                <p class="card-text">Discount: ${voucher.discount}%</p>
-                                <p class="card-text">Expires: ${new Date(voucher.expiryDate).toLocaleDateString()}</p>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-            } else {
-                vouchersContainer.innerHTML = '<div class="col-12"><p>No vouchers assigned to you</p></div>';
             }
         }
 
     } catch (error) {
         console.error('Failed to load staff dashboard:', error);
-        // Fallback to calculated data if API fails
-        await loadFallbackStaffData();
+        showNotification('Failed to load staff dashboard', 'error');
     }
-}
-
-async function loadAdminDashboard() {
-    try {
-        const data = await apiCall('/dashboard/admin');
-
-        // Use actual database counts - assuming orders are paid
-        const actualUsers = await getVerifiedUsersCount();
-        const actualBookings = await getVerifiedBookingsCount();
-        const actualProductsSold = await getVerifiedProductsSold();
-        const actualRevenue = await getVerifiedRevenue();
-
-        document.getElementById('totalUsers').textContent = actualUsers;
-        document.getElementById('totalBookings').textContent = actualBookings;
-        document.getElementById('totalProducts').textContent = actualProductsSold;
-        document.getElementById('totalRevenue').textContent = 'R ' + actualRevenue;
-
-        // Load charts with verified data
-        if (data.charts) {
-            createRevenueChart(data.charts.revenue);
-            createStaffPerformanceChart(data.charts.staffPerformance);
-            createServicesChart(data.charts.popularServices);
-        } else {
-            // Create charts with calculated data if no chart data provided
-            await createVerifiedCharts();
-        }
-
-        // Load recent activity
-        const recentActivityList = document.getElementById('recentActivity');
-        if (recentActivityList && data.recentActivity) {
-            recentActivityList.innerHTML = data.recentActivity.map(activity => `
-                <li class="list-group-item">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h6 class="mb-1">${activity.title}</h6>
-                        <small>${new Date(activity.timestamp).toLocaleDateString()}</small>
-                    </div>
-                    <p class="mb-1">${activity.description}</p>
-                </li>
-            `).join('') || '<li class="list-group-item">No recent activity</li>';
-        }
-
-    } catch (error) {
-        console.error('Failed to load admin dashboard:', error);
-        // Fallback to verified calculated data
-        await loadVerifiedAdminData();
-    }
-}
-
-// Update revenue calculation to only count paid orders
-async function getVerifiedRevenue() {
-    try {
-        const orders = await apiCall('/orders');
-        // Only count orders that are paid/delivered
-        const paidOrders = orders.filter(order => 
-            order.status === 'paid' || order.status === 'delivered' || order.status === 'completed'
-        );
-        const totalRevenue = paidOrders.reduce((total, order) => total + (order.totalAmount || order.total || 0), 0);
-        console.log('📊 Total revenue from paid orders:', totalRevenue);
-        return totalRevenue;
-    } catch (error) {
-        console.error('Failed to get verified revenue:', error);
-        return 0;
-    }
-}
-
-// Update products sold to only count paid orders
-async function getVerifiedProductsSold() {
-    try {
-        const orders = await apiCall('/orders');
-        // Only count products from paid/delivered orders
-        const paidOrders = orders.filter(order => 
-            order.status === 'paid' || order.status === 'delivered' || order.status === 'completed'
-        );
-        const totalProducts = paidOrders.reduce((total, order) => total + (order.items?.length || 0), 0);
-        console.log('📊 Total products sold from paid orders:', totalProducts);
-        return totalProducts;
-    } catch (error) {
-        console.error('Failed to get verified products sold count:', error);
-        return 0;
-    }
-}
-
-// Update staff performance to only count paid orders
-function calculateVerifiedStaffPerformance(orders, bookings, staffMembers) {
-    const performance = {};
-    
-    // Initialize with all staff members
-    staffMembers.forEach(staff => {
-        performance[staff.name] = 0;
-    });
-
-    // Add revenue from PAID orders processed by staff
-    const paidOrders = orders.filter(order => 
-        order.status === 'paid' || order.status === 'delivered' || order.status === 'completed'
-    );
-    
-    paidOrders.forEach(order => {
-        if (order.processedBy) {
-            const staff = staffMembers.find(s => 
-                s._id === order.processedBy._id || s._id === order.processedBy
-            );
-            if (staff) {
-                performance[staff.name] += order.totalAmount || order.total || 0;
-            }
-        }
-    });
-
-    // Add revenue from COMPLETED bookings assigned to staff
-    const completedBookings = bookings.filter(booking => 
-        booking.status === 'completed'
-    );
-    
-    completedBookings.forEach(booking => {
-        if (booking.staff && booking.price) {
-            const staff = staffMembers.find(s => 
-                s._id === booking.staff._id || s._id === booking.staff
-            );
-            if (staff) {
-                performance[staff.name] += booking.price || 0;
-            }
-        }
-    });
-
-    // Filter out staff with zero performance
-    const filteredPerformance = Object.fromEntries(
-        Object.entries(performance).filter(([_, value]) => value > 0)
-    );
-
-    console.log('📊 Staff performance data (paid orders only):', filteredPerformance);
-    return filteredPerformance;
-}
-
-// ===== VERIFIED DATA FUNCTIONS =====
-async function getVerifiedUsersCount() {
-    try {
-        const users = await apiCall('/users');
-        console.log('📊 Total users in database:', users.length);
-        return users.length || 0;
-    } catch (error) {
-        console.error('Failed to get verified users count:', error);
-        return 0;
-    }
-}
-
-async function getVerifiedBookingsCount() {
-    try {
-        const bookings = await apiCall('/bookings');
-        console.log('📊 Total bookings in database:', bookings.length);
-        return bookings.length || 0;
-    } catch (error) {
-        console.error('Failed to get verified bookings count:', error);
-        return 0;
-    }
-}
-
-async function getVerifiedProductsSold() {
-    try {
-        const orders = await apiCall('/orders');
-        const totalProducts = orders.reduce((total, order) => total + (order.items?.length || 0), 0);
-        console.log('📊 Total products sold:', totalProducts);
-        return totalProducts;
-    } catch (error) {
-        console.error('Failed to get verified products sold count:', error);
-        return 0;
-    }
-}
-
-async function getVerifiedRevenue() {
-    try {
-        const orders = await apiCall('/orders');
-        const totalRevenue = orders.reduce((total, order) => total + (order.totalAmount || 0), 0);
-        console.log('📊 Total revenue:', totalRevenue);
-        return totalRevenue;
-    } catch (error) {
-        console.error('Failed to get verified revenue:', error);
-        return 0;
-    }
-}
-
-async function createVerifiedCharts() {
-    try {
-        const [orders, bookings, services, staffMembers] = await Promise.all([
-            apiCall('/orders').catch(() => []),
-            apiCall('/bookings').catch(() => []),
-            apiCall('/services').catch(() => []),
-            apiCall('/users/staff').catch(() => [])
-        ]);
-
-        console.log('📊 Creating verified charts with:', {
-            orders: orders.length,
-            bookings: bookings.length,
-            services: services.length,
-            staff: staffMembers.length
-        });
-
-        // Revenue chart with actual order data
-        const monthlyRevenue = calculateVerifiedMonthlyRevenue(orders);
-        createRevenueChart({
-            labels: Object.keys(monthlyRevenue),
-            values: Object.values(monthlyRevenue)
-        });
-
-        // Staff performance with actual assignments
-        const staffPerformance = calculateVerifiedStaffPerformance(orders, bookings, staffMembers);
-        createStaffPerformanceChart({
-            labels: Object.keys(staffPerformance),
-            values: Object.values(staffPerformance)
-        });
-
-        // Popular services with actual booking data
-        const servicePopularity = calculateServicePopularity(bookings, services);
-        createServicesChart({
-            labels: Object.keys(servicePopularity),
-            values: Object.values(servicePopularity)
-        });
-
-    } catch (error) {
-        console.error('Failed to create verified charts:', error);
-    }
-}
-
-function calculateVerifiedMonthlyRevenue(orders) {
-    const last6Months = [];
-    for (let i = 5; i >= 0; i--) {
-        const date = new Date();
-        date.setMonth(date.getMonth() - i);
-        last6Months.push(date.toLocaleString('default', { month: 'short' }) + ' ' + date.getFullYear());
-    }
-
-    const revenue = {};
-    last6Months.forEach(month => revenue[month] = 0);
-
-    orders.forEach(order => {
-        if (order.createdAt) {
-            const orderDate = new Date(order.createdAt);
-            const monthKey = orderDate.toLocaleString('default', { month: 'short' }) + ' ' + orderDate.getFullYear();
-            if (revenue[monthKey] !== undefined) {
-                revenue[monthKey] += order.totalAmount || 0;
-            }
-        }
-    });
-
-    console.log('📊 Monthly revenue data:', revenue);
-    return revenue;
-}
-
-function calculateVerifiedStaffPerformance(orders, bookings, staffMembers) {
-    const performance = {};
-
-    // Initialize with all staff members
-    staffMembers.forEach(staff => {
-        performance[staff.name] = 0;
-    });
-
-    // Add revenue from orders processed by staff
-    orders.forEach(order => {
-        if (order.processedBy) {
-            const staff = staffMembers.find(s => s._id === order.processedBy._id || s._id === order.processedBy);
-            if (staff) {
-                performance[staff.name] += order.total || 0;
-            }
-        }
-    });
-
-    // Add revenue from bookings assigned to staff
-    bookings.forEach(booking => {
-        if (booking.staff && booking.price) {
-            const staff = staffMembers.find(s => s._id === booking.staff._id || s._id === booking.staff);
-            if (staff) {
-                performance[staff.name] += booking.price || 0;
-            }
-        }
-    });
-
-    // Filter out staff with zero performance
-    const filteredPerformance = Object.fromEntries(
-        Object.entries(performance).filter(([_, value]) => value > 0)
-    );
-
-    console.log('📊 Staff performance data:', filteredPerformance);
-    return filteredPerformance;
-}
-
-async function loadVerifiedAdminData() {
-    try {
-        const [users, bookings, orders, services, staffMembers] = await Promise.all([
-            apiCall('/users').catch(() => []),
-            apiCall('/bookings').catch(() => []),
-            apiCall('/orders').catch(() => []),
-            apiCall('/services').catch(() => []),
-            apiCall('/users/staff').catch(() => [])
-        ]);
-
-        console.log('📊 Verified admin data:', {
-            users: users.length,
-            bookings: bookings.length,
-            orders: orders.length,
-            services: services.length,
-            staff: staffMembers.length
-        });
-
-        // Calculate verified stats
-        const totalUsers = users.length;
-        const totalBookings = bookings.length;
-        const totalProductsSold = orders.reduce((total, order) => total + (order.items?.length || 0), 0);
-        const totalRevenue = orders.reduce((total, order) => total + (order.totalAmount || 0), 0);
-
-        // Update display
-        document.getElementById('totalUsers').textContent = totalUsers;
-        document.getElementById('totalBookings').textContent = totalBookings;
-        document.getElementById('totalProducts').textContent = totalProductsSold;
-        document.getElementById('totalRevenue').textContent = 'R ' + totalRevenue;
-
-        // Create charts with verified data
-        await createVerifiedCharts();
-
-    } catch (error) {
-        console.error('Failed to load verified admin data:', error);
-    }
-}
-
-// ===== HELPER FUNCTIONS FOR REAL DATA COUNTING =====
-async function getTotalUsersCount() {
-    try {
-        const users = await apiCall('/users');
-        return users.length || 0;
-    } catch (error) {
-        console.error('Failed to get users count:', error);
-        return 0;
-    }
-}
-
-async function getTotalBookingsCount() {
-    try {
-        const bookings = await apiCall('/bookings');
-        return bookings.length || 0;
-    } catch (error) {
-        console.error('Failed to get bookings count:', error);
-        return 0;
-    }
-}
-
-async function getTotalProductsSold() {
-    try {
-        const orders = await apiCall('/orders');
-        return orders.reduce((total, order) => total + (order.items?.length || 0), 0);
-    } catch (error) {
-        console.error('Failed to get products sold count:', error);
-        return 0;
-    }
-}
-
-async function getTotalRevenue() {
-    try {
-        const orders = await apiCall('/orders');
-        return orders.reduce((total, order) => total + (order.totalAmount || 0), 0);
-    } catch (error) {
-        console.error('Failed to get total revenue:', error);
-        return 0;
-    }
-}
-
-// ===== FALLBACK DATA FUNCTIONS =====
-async function loadFallbackStaffData() {
-    try {
-        console.log('📊 Loading fallback staff data...');
-
-        // Get all data and filter for current staff member
-        const [allBookings, allOrders, allVouchers] = await Promise.all([
-            apiCall('/bookings').catch(() => []),
-            apiCall('/orders').catch(() => []),
-            apiCall('/vouchers').catch(() => [])
-        ]);
-
-        console.log('📊 Raw data counts:', {
-            bookings: allBookings.length,
-            orders: allOrders.length,
-            vouchers: allVouchers.length
-        });
-
-        // Filter data for current staff member
-        const staffBookings = allBookings.filter(booking =>
-            booking.assignedStaff === currentUser._id ||
-            booking.staff === currentUser._id
-        );
-
-        const staffOrders = allOrders.filter(order =>
-            order.processedBy === currentUser._id ||
-            order.staff === currentUser._id
-        );
-
-        const staffVouchers = allVouchers.filter(voucher =>
-            voucher.assignedStaff === currentUser._id
-        );
-
-        console.log('📊 Filtered staff data:', {
-            staffBookings: staffBookings.length,
-            staffOrders: staffOrders.length,
-            staffVouchers: staffVouchers.length
-        });
-
-        // Calculate stats
-        const totalSales = staffOrders.length;
-        const totalClients = new Set(staffOrders.map(order => order.user?.name || order.user)).size;
-        const totalHours = staffBookings.reduce((sum, booking) => {
-            const duration = parseInt(booking.service?.duration) ||
-                parseInt(booking.duration) || 60;
-            return sum + (duration / 60); // Convert minutes to hours
-        }, 0);
-
-        const totalCommission = staffOrders.reduce((sum, order) =>
-            sum + ((order.totalAmount || 0) * 0.1), 0 // 10% commission
-        );
-
-        // Update display
-        document.getElementById('staffSales').textContent = totalSales;
-        document.getElementById('staffClients').textContent = totalClients;
-        document.getElementById('staffHours').textContent = Math.round(totalHours);
-        document.getElementById('staffCommission').textContent = 'R ' + Math.round(totalCommission);
-
-        // Update appointments with real data
-        const appointmentsList = document.getElementById('staffAppointments');
-        if (appointmentsList) {
-            if (staffBookings.length > 0) {
-                const upcomingBookings = staffBookings
-                    .filter(booking => new Date(booking.date) >= new Date())
-                    .sort((a, b) => new Date(a.date) - new Date(b.date))
-                    .slice(0, 5);
-
-                if (upcomingBookings.length > 0) {
-                    appointmentsList.innerHTML = upcomingBookings.map(booking => `
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>${booking.service?.name || 'Service'}</strong><br>
-                                <small>Client: ${booking.user?.name || 'Customer'}</small>
-                            </div>
-                            <span class="badge bg-primary rounded-pill">
-                                ${new Date(booking.date).toLocaleDateString()}, ${booking.time}
-                            </span>
-                        </li>
-                    `).join('');
-                } else {
-                    appointmentsList.innerHTML = '<li class="list-group-item">No upcoming appointments</li>';
-                }
-            } else {
-                appointmentsList.innerHTML = '<li class="list-group-item">No upcoming appointments</li>';
-            }
-        }
-
-        // Update recent sales with real data
-        const recentSalesList = document.getElementById('staffRecentSales');
-        if (recentSalesList) {
-            if (staffOrders.length > 0) {
-                const recentOrders = staffOrders
-                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-                    .slice(0, 5);
-
-                recentSalesList.innerHTML = recentOrders.map(order => `
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>Order #${order.orderNumber || order._id?.substring(-6)}</strong><br>
-                            <small>${order.items?.length || 0} items - ${new Date(order.createdAt).toLocaleDateString()}</small>
-                        </div>
-                        <span class="badge bg-success rounded-pill">R ${order.totalAmount || 0}</span>
-                    </li>
-                `).join('');
-            } else {
-                recentSalesList.innerHTML = '<li class="list-group-item">No recent sales</li>';
-            }
-        }
-
-        // Update vouchers with real data
-        const vouchersContainer = document.getElementById('staffVouchers');
-        if (vouchersContainer) {
-            if (staffVouchers.length > 0) {
-                vouchersContainer.innerHTML = staffVouchers.map(voucher => `
-                    <div class="col-md-6 mb-3">
-                        <div class="card">
-                            <div class="card-body">
-                                <h6 class="card-title">${voucher.code}</h6>
-                                <p class="card-text">Discount: ${voucher.discount}%</p>
-                                <p class="card-text">Expires: ${new Date(voucher.expiryDate).toLocaleDateString()}</p>
-                                <small class="text-muted">Used: ${voucher.usedCount || 0} times</small>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-            } else {
-                vouchersContainer.innerHTML = '<div class="col-12"><p>No vouchers assigned to you</p></div>';
-            }
-        }
-
-    } catch (error) {
-        console.error('Failed to load fallback staff data:', error);
-    }
-}
-
-async function loadFallbackAdminData() {
-    try {
-        // Calculate admin data from existing data
-        const [users, bookings, orders, services] = await Promise.all([
-            apiCall('/users').catch(() => []),
-            apiCall('/bookings').catch(() => []),
-            apiCall('/orders').catch(() => []),
-            apiCall('/services').catch(() => [])
-        ]);
-
-        // Calculate stats
-        const totalUsers = users.length;
-        const totalBookings = bookings.length;
-        const totalProductsSold = orders.reduce((total, order) => total + (order.items?.length || 0), 0);
-        const totalRevenue = orders.reduce((total, order) => total + (order.totalAmount || 0), 0);
-
-        // Update display
-        document.getElementById('totalUsers').textContent = totalUsers;
-        document.getElementById('totalBookings').textContent = totalBookings;
-        document.getElementById('totalProducts').textContent = totalProductsSold;
-        document.getElementById('totalRevenue').textContent = 'R ' + totalRevenue;
-
-        // Create charts with calculated data
-        await createFallbackCharts();
-
-    } catch (error) {
-        console.error('Failed to load fallback admin data:', error);
-    }
-}
-
-async function createFallbackCharts() {
-    try {
-        const [orders, bookings, services] = await Promise.all([
-            apiCall('/orders').catch(() => []),
-            apiCall('/bookings').catch(() => []),
-            apiCall('/services').catch(() => [])
-        ]);
-
-        // Revenue chart - last 6 months
-        const monthlyRevenue = calculateMonthlyRevenue(orders);
-        createRevenueChart({
-            labels: Object.keys(monthlyRevenue),
-            values: Object.values(monthlyRevenue)
-        });
-
-        // Staff performance chart
-        const staffPerformance = calculateStaffPerformance(orders, bookings);
-        createStaffPerformanceChart({
-            labels: Object.keys(staffPerformance),
-            values: Object.values(staffPerformance)
-        });
-
-        // Popular services chart
-        const servicePopularity = calculateServicePopularity(bookings, services);
-        createServicesChart({
-            labels: Object.keys(servicePopularity),
-            values: Object.values(servicePopularity)
-        });
-
-    } catch (error) {
-        console.error('Failed to create fallback charts:', error);
-    }
-}
-
-function calculateMonthlyRevenue(orders) {
-    const last6Months = [];
-    for (let i = 5; i >= 0; i--) {
-        const date = new Date();
-        date.setMonth(date.getMonth() - i);
-        last6Months.push(date.toLocaleString('default', { month: 'short' }));
-    }
-
-    const revenue = {};
-    last6Months.forEach(month => revenue[month] = 0);
-
-    orders.forEach(order => {
-        if (order.createdAt) {
-            const month = new Date(order.createdAt).toLocaleString('default', { month: 'short' });
-            if (revenue[month] !== undefined) {
-                revenue[month] += order.totalAmount || 0;
-            }
-        }
-    });
-
-    return revenue;
-}
-
-function calculateStaffPerformance(orders, bookings) {
-    const performance = {};
-
-    // Combine orders and bookings to get staff performance
-    const allStaffActivities = [
-        ...orders.map(order => ({
-            staff: order.processedBy || 'Unassigned',
-            amount: order.totalAmount || 0
-        })),
-        ...bookings.map(booking => ({
-            staff: booking.assignedStaff || 'Unassigned',
-            amount: booking.service?.price || 0
-        }))
-    ];
-
-    allStaffActivities.forEach(activity => {
-        if (activity.staff && activity.amount) {
-            if (!performance[activity.staff]) {
-                performance[activity.staff] = 0;
-            }
-            performance[activity.staff] += activity.amount;
-        }
-    });
-
-    // Convert to display format
-    const staffNames = {
-        'Unassigned': 'Unassigned',
-        // Add more staff mappings as needed
-    };
-
-    return Object.keys(performance).reduce((acc, staffId) => {
-        const displayName = staffNames[staffId] || `Staff ${staffId.substring(-4)}`;
-        acc[displayName] = performance[staffId];
-        return acc;
-    }, {});
-}
-
-function calculateServicePopularity(bookings, services) {
-    const popularity = {};
-
-    // Initialize with all services
-    services.forEach(service => {
-        popularity[service.name] = 0;
-    });
-
-    // Count bookings per service
-    bookings.forEach(booking => {
-        if (booking.service && popularity[booking.service.name] !== undefined) {
-            popularity[booking.service.name]++;
-        }
-    });
-
-    return popularity;
 }
 
 // ===== CHART FUNCTIONS =====
-function createRevenueChart(data) {
+function createRevenueChart(monthlyRevenueData) {
     const ctx = document.getElementById('revenueChart');
     if (!ctx) {
         console.warn('Revenue chart canvas not found');
         return;
     }
 
-    cleanupCharts();
+    // Clean up existing chart
+    if (chartInstances.revenueChart) {
+        chartInstances.revenueChart.destroy();
+    }
 
-    // Ensure we have data
-    const labels = data?.labels || ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-    const values = data?.values || [6500, 7200, 8100, 7800, 9200, 10500];
+    // Process data for chart
+    let labels, data;
+
+    if (Array.isArray(monthlyRevenueData)) {
+        labels = monthlyRevenueData.map(item => item.monthName || `Month ${item._id}`);
+        data = monthlyRevenueData.map(item => item.revenue || 0);
+    } else {
+        // Object format
+        labels = Object.keys(monthlyRevenueData);
+        data = Object.values(monthlyRevenueData);
+    }
 
     chartInstances.revenueChart = new Chart(ctx, {
         type: 'line',
@@ -1637,21 +886,16 @@ function createRevenueChart(data) {
             labels: labels,
             datasets: [{
                 label: 'Monthly Revenue (R)',
-                data: values,
-                borderColor: '#8a6d3b',
-                backgroundColor: 'rgba(138, 109, 59, 0.1)',
-                tension: 0.3,
-                fill: true,
-                borderWidth: 2
+                data: data,
+                borderColor: '#4e73df',
+                backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                tension: 0.4,
+                fill: true
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
             plugins: {
-                legend: {
-                    position: 'top',
-                },
                 title: {
                     display: true,
                     text: 'Revenue Trend'
@@ -1671,35 +915,64 @@ function createRevenueChart(data) {
     });
 }
 
-function createStaffPerformanceChart(data) {
+// Function to sort monthly revenue data chronologically
+function sortMonthlyRevenueData(monthlyRevenue) {
+    const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+
+    // Combine labels and data into sortable objects
+    const combined = monthlyRevenue.labels.map((label, index) => ({
+        label,
+        data: monthlyRevenue.data[index],
+        // Extract year and month for sorting
+        year: parseInt(label.split(' ')[1]),
+        month: months.indexOf(label.split(' ')[0])
+    }));
+
+    // Sort by year and month
+    combined.sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.month - b.month;
+    });
+
+    // Return separated arrays
+    return {
+        labels: combined.map(item => item.label),
+        data: combined.map(item => item.data)
+    };
+}
+
+function createStaffPerformanceChart(staffPerformance) {
     const ctx = document.getElementById('staffPerformanceChart');
     if (!ctx) {
         console.warn('Staff performance chart canvas not found');
         return;
     }
 
-    const labels = data?.labels || ['Jane', 'John', 'Mike', 'Sarah'];
-    const values = data?.values || [12000, 9000, 7500, 11000];
+    if (chartInstances.staffPerformanceChart) {
+        chartInstances.staffPerformanceChart.destroy();
+    }
+
+    const labels = staffPerformance.map(staff => staff.name);
+    const data = staffPerformance.map(staff => staff.totalRevenue);
 
     chartInstances.staffPerformanceChart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
             datasets: [{
-                label: 'Sales Performance (R)',
-                data: values,
-                backgroundColor: 'rgba(138, 109, 59, 0.8)',
-                borderColor: '#8a6d3b',
+                label: 'Revenue Generated (R)',
+                data: data,
+                backgroundColor: 'rgba(78, 115, 223, 0.8)',
+                borderColor: '#4e73df',
                 borderWidth: 1
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
             plugins: {
-                legend: {
-                    position: 'top',
-                },
                 title: {
                     display: true,
                     text: 'Staff Performance'
@@ -1719,38 +992,38 @@ function createStaffPerformanceChart(data) {
     });
 }
 
-function createServicesChart(data) {
+function createServicesChart(popularServices) {
     const ctx = document.getElementById('servicesChart');
     if (!ctx) {
         console.warn('Services chart canvas not found');
         return;
     }
 
-    const labels = data?.labels || ['Massage', 'Facial', 'Manicure', 'Pedicure'];
-    const values = data?.values || [35, 25, 20, 20];
+    if (chartInstances.servicesChart) {
+        chartInstances.servicesChart.destroy();
+    }
+
+    const labels = popularServices.map(service => service.name);
+    const data = popularServices.map(service => service.count);
 
     chartInstances.servicesChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: labels,
             datasets: [{
-                data: values,
+                data: data,
                 backgroundColor: [
-                    '#8a6d3b',
-                    '#d4af37',
-                    '#f5f5f5',
-                    '#333333'
-                ],
-                borderWidth: 1
+                    '#4e73df',
+                    '#1cc88a',
+                    '#36b9cc',
+                    '#f6c23e',
+                    '#e74a3b'
+                ]
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
             plugins: {
-                legend: {
-                    position: 'bottom',
-                },
                 title: {
                     display: true,
                     text: 'Popular Services'
@@ -1760,234 +1033,99 @@ function createServicesChart(data) {
     });
 }
 
-// Clean up all chart instances
-function cleanupCharts() {
-    Object.keys(chartInstances).forEach(chartName => {
-        if (chartInstances[chartName]) {
-            try {
-                chartInstances[chartName].destroy();
-                chartInstances[chartName] = null;
-            } catch (error) {
-                console.warn(`Error destroying chart ${chartName}:`, error);
+function updateRecentActivity(activities) {
+    const recentActivityList = document.getElementById('recentActivity');
+    if (!recentActivityList) return;
+
+    if (activities.length > 0) {
+        recentActivityList.innerHTML = activities.map(activity => `
+            <li class="list-group-item">
+                <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1">${activity.title || activity.description}</h6>
+                    <small>${new Date(activity.timestamp || activity.date).toLocaleDateString()}</small>
+                </div>
+                <p class="mb-1">${activity.description || activity.type}</p>
+            </li>
+        `).join('');
+    } else {
+        recentActivityList.innerHTML = '<li class="list-group-item">No recent activity</li>';
+    }
+}
+
+// ===== STAFF MANAGEMENT =====
+async function loadStaffMembers() {
+    try {
+        const data = await apiCall('/users/staff');
+        return data.staff || data.data || data || [];
+    } catch (error) {
+        console.log('Staff endpoint not available, falling back to all users filter');
+        try {
+            const allUsers = await apiCall('/users');
+            const staffMembers = allUsers.filter(user =>
+                user.role === 'staff' || user.role === 'admin'
+            );
+            console.log(`✅ Found ${staffMembers.length} staff members from all users`);
+            return staffMembers;
+        } catch (fallbackError) {
+            console.error('Failed to load staff members:', fallbackError);
+            return [];
+        }
+    }
+}
+
+async function populateStaffDropdowns() {
+    try {
+        const staffMembers = await loadStaffMembers();
+        const staffDropdowns = [
+            document.getElementById('assignedStaff'),
+            document.getElementById('cartStaff'),
+            document.getElementById('giftStaff')
+        ].filter(dropdown => dropdown !== null);
+
+        staffDropdowns.forEach(dropdown => {
+            if (dropdown) {
+                while (dropdown.options.length > 1) {
+                    dropdown.remove(1);
+                }
+
+                if (staffMembers.length > 0) {
+                    staffMembers.forEach(staff => {
+                        const option = document.createElement('option');
+                        option.value = staff._id;
+                        option.textContent = `${staff.name} (${staff.role})`;
+                        dropdown.appendChild(option);
+                    });
+                }
             }
-        }
-    });
-}
-
-// ===== ADMIN FUNCTIONS =====
-async function showAdminModal(action) {
-    try {
-        const modal = new bootstrap.Modal(document.getElementById('adminModal'));
-        const modalTitle = document.getElementById('adminModalTitle');
-        const modalBody = document.getElementById('adminModalBody');
-
-        if (!modal || !modalTitle || !modalBody) {
-            console.warn('Admin modal elements not found');
-            return;
-        }
-
-        if (action === 'addService') {
-            modalTitle.textContent = 'Add New Service';
-            modalBody.innerHTML = `
-                <form id="addServiceForm">
-                    <div class="mb-3">
-                        <label for="serviceName" class="form-label">Service Name</label>
-                        <input type="text" class="form-control" id="serviceName" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="serviceDescription" class="form-label">Description</label>
-                        <textarea class="form-control" id="serviceDescription" rows="3" required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="servicePrice" class="form-label">Price (R)</label>
-                        <input type="number" class="form-control" id="servicePrice" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="serviceDuration" class="form-label">Duration</label>
-                        <input type="text" class="form-control" id="serviceDuration" placeholder="e.g., 60 min" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="serviceCategory" class="form-label">Category</label>
-                        <select class="form-control" id="serviceCategory" required>
-                            <option value="">Select a category</option>
-                            <option value="massage">Massage</option>
-                            <option value="skincare">Skincare</option>
-                            <option value="nails">Nails</option>
-                            <option value="wellness">Wellness</option>
-                            <option value="haircare">Hair Care</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Add Service</button>
-                </form>
-            `;
-
-            document.getElementById('addServiceForm').addEventListener('submit', async function (e) {
-                e.preventDefault();
-                await addNewService();
-                modal.hide();
-            });
-
-        } else if (action === 'addProduct') {
-            modalTitle.textContent = 'Add New Product';
-            modalBody.innerHTML = `
-                <form id="addProductForm">
-                    <div class="mb-3">
-                        <label for="productName" class="form-label">Product Name</label>
-                        <input type="text" class="form-control" id="productName" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="productDescription" class="form-label">Description</label>
-                        <textarea class="form-control" id="productDescription" rows="3" required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="productPrice" class="form-label">Price (R)</label>
-                        <input type="number" class="form-control" id="productPrice" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="productCategory" class="form-label">Category</label>
-                        <select class="form-control" id="productCategory" required>
-                            <option value="">Select a category</option>
-                            <option value="skincare">Skincare</option>
-                            <option value="haircare">Hair Care</option>
-                            <option value="wellness">Wellness</option>
-                            <option value="makeup">Makeup</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="productImage" class="form-label">Image URL</label>
-                        <input type="url" class="form-control" id="productImage" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Add Product</button>
-                </form>
-            `;
-
-            document.getElementById('addProductForm').addEventListener('submit', async function (e) {
-                e.preventDefault();
-                await addNewProduct();
-                modal.hide();
-            });
-
-        } else if (action === 'addVoucher') {
-            modalTitle.textContent = 'Create Voucher Code';
-            modalBody.innerHTML = `
-                <form id="addVoucherForm">
-                    <div class="mb-3">
-                        <label for="voucherCode" class="form-label">Voucher Code</label>
-                        <input type="text" class="form-control" id="voucherCode" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="voucherDiscount" class="form-label">Discount (%)</label>
-                        <input type="number" class="form-control" id="voucherDiscount" min="1" max="100" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="voucherExpiry" class="form-label">Expiry Date</label>
-                        <input type="date" class="form-control" id="voucherExpiry" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="voucherStaff" class="form-label">Assign to Staff (Optional)</label>
-                        <select class="form-control" id="voucherStaff">
-                            <option value="">No specific staff</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Create Voucher</button>
-                </form>
-            `;
-
-            document.getElementById('addVoucherForm').addEventListener('submit', async function (e) {
-                e.preventDefault();
-                await addNewVoucher();
-                modal.hide();
-            });
-        }
-
-        modal.show();
-
-    } catch (error) {
-        console.error('Error showing admin modal:', error);
-        alert('Unable to load admin controls: ' + error.message);
-    }
-}
-
-async function addNewService() {
-    try {
-        const name = document.getElementById('serviceName').value;
-        const description = document.getElementById('serviceDescription').value;
-        const price = parseInt(document.getElementById('servicePrice').value);
-        const duration = document.getElementById('serviceDuration').value;
-        const category = document.getElementById('serviceCategory').value;
-
-        await apiCall('/services', {
-            method: 'POST',
-            body: JSON.stringify({ name, description, price, duration, category })
         });
 
-        loadServices();
-        alert('Service added successfully!');
-
+        console.log(`✅ Populated ${staffDropdowns.length} dropdowns with ${staffMembers.length} staff members`);
+        return staffMembers;
     } catch (error) {
-        alert('Failed to add service: ' + error.message);
-    }
-}
-
-async function addNewProduct() {
-    try {
-        const name = document.getElementById('productName').value;
-        const description = document.getElementById('productDescription').value;
-        const price = parseInt(document.getElementById('productPrice').value);
-        const category = document.getElementById('productCategory').value;
-        const image = document.getElementById('productImage').value;
-
-        await apiCall('/products', {
-            method: 'POST',
-            body: JSON.stringify({ name, description, price, category, image })
-        });
-
-        loadProducts();
-        alert('Product added successfully!');
-
-    } catch (error) {
-        alert('Failed to add product: ' + error.message);
-    }
-}
-
-async function addNewVoucher() {
-    try {
-        const code = document.getElementById('voucherCode').value;
-        const discount = parseInt(document.getElementById('voucherDiscount').value);
-        const expiryDate = document.getElementById('voucherExpiry').value;
-        const assignedStaff = document.getElementById('voucherStaff').value;
-
-        const voucherData = {
-            code,
-            discount,
-            expiryDate,
-            ...(assignedStaff && { assignedStaff })
-        };
-
-        await apiCall('/vouchers', {
-            method: 'POST',
-            body: JSON.stringify(voucherData)
-        });
-
-        alert('Voucher created successfully!');
-
-    } catch (error) {
-        alert('Failed to create voucher: ' + error.message);
+        console.error('Failed to populate staff dropdowns:', error);
+        return [];
     }
 }
 
 // ===== UTILITY FUNCTIONS =====
-function cleanupCharts() {
-    Object.keys(chartInstances).forEach(chartName => {
-        if (chartInstances[chartName]) {
-            try {
-                chartInstances[chartName].destroy();
-                chartInstances[chartName] = null;
-            } catch (error) {
-                console.warn(`Error destroying chart ${chartName}:`, error);
-            }
+function showNotification(message, type = 'info') {
+    // Create a simple notification system
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
         }
-    });
+    }, 5000);
 }
 
 function setMinimumDates() {
@@ -2003,8 +1141,6 @@ function safeFormSetup() {
     const forms = {
         'loginFormElement': handleLogin,
         'registerFormElement': handleRegister,
-        'profileForm': updateProfile,
-        'passwordForm': changePassword,
         'bookingDetailsForm': confirmBooking,
         'giftCustomizationForm': createGift
     };
@@ -2012,10 +1148,7 @@ function safeFormSetup() {
     Object.entries(forms).forEach(([formId, handler]) => {
         const form = document.getElementById(formId);
         if (form) {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                handler(e);
-            });
+            form.addEventListener('submit', handler);
         }
     });
 
@@ -2035,15 +1168,19 @@ document.addEventListener('DOMContentLoaded', function () {
             currentUser = JSON.parse(savedUser);
             updateUIForUser();
 
-            // Pre-load staff members if user is staff or admin
             if (currentUser.role === 'staff' || currentUser.role === 'admin') {
                 populateStaffDropdowns();
             }
+
         } catch (error) {
             console.error('Error parsing saved user:', error);
             localStorage.removeItem('token');
             localStorage.removeItem('currentUser');
+            currentUser = null;
         }
+    } else {
+        currentUser = null;
+        updateUIForUser();
     }
 
     // Safe form setup
@@ -2056,6 +1193,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadProducts();
     loadServices();
     loadGiftPackages();
+
 
     console.log('✅ Application initialized successfully');
 });

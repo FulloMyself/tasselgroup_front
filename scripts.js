@@ -132,6 +132,312 @@ async function handleLogin(e) {
     }
 }
 
+// ===== ADMIN MODAL FUNCTIONS =====
+function showAdminModal(type) {
+    const modalTitle = document.getElementById('adminModalTitle');
+    const modalBody = document.getElementById('adminModalBody');
+    
+    if (!modalTitle || !modalBody) {
+        console.error('Admin modal elements not found');
+        return;
+    }
+
+    switch (type) {
+        case 'addService':
+            modalTitle.textContent = 'Add New Service';
+            modalBody.innerHTML = getServiceForm();
+            break;
+        case 'addProduct':
+            modalTitle.textContent = 'Add New Product';
+            modalBody.innerHTML = getProductForm();
+            break;
+        case 'addVoucher':
+            modalTitle.textContent = 'Create New Voucher';
+            modalBody.innerHTML = getVoucherForm();
+            break;
+        default:
+            console.error('Unknown modal type:', type);
+            return;
+    }
+
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('adminModal'));
+    modal.show();
+}
+
+function getServiceForm() {
+    return `
+        <form id="serviceForm" onsubmit="handleServiceSubmit(event)">
+            <div class="mb-3">
+                <label for="serviceName" class="form-label">Service Name</label>
+                <input type="text" class="form-control" id="serviceName" required>
+            </div>
+            <div class="mb-3">
+                <label for="serviceDescription" class="form-label">Description</label>
+                <textarea class="form-control" id="serviceDescription" rows="3" required></textarea>
+            </div>
+            <div class="mb-3">
+                <label for="servicePrice" class="form-label">Price (R)</label>
+                <input type="number" class="form-control" id="servicePrice" min="0" step="0.01" required>
+            </div>
+            <div class="mb-3">
+                <label for="serviceDuration" class="form-label">Duration</label>
+                <input type="text" class="form-control" id="serviceDuration" placeholder="e.g., 60 min" required>
+            </div>
+            <div class="mb-3">
+                <label for="serviceCategory" class="form-label">Category</label>
+                <select class="form-control" id="serviceCategory" required>
+                    <option value="">Select Category</option>
+                    <option value="massage">Massage</option>
+                    <option value="skincare">Skincare</option>
+                    <option value="makeup">Makeup</option>
+                    <option value="wellness">Wellness</option>
+                    <option value="nails">Nails</option>
+                    <option value="haircare">Haircare</option>
+                    <option value="spa">Spa</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="serviceImage" class="form-label">Image URL (Optional)</label>
+                <input type="url" class="form-control" id="serviceImage" placeholder="https://example.com/image.jpg">
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Add Service</button>
+        </form>
+    `;
+}
+
+function getProductForm() {
+    return `
+        <form id="productForm" onsubmit="handleProductSubmit(event)">
+            <div class="mb-3">
+                <label for="productName" class="form-label">Product Name</label>
+                <input type="text" class="form-control" id="productName" required>
+            </div>
+            <div class="mb-3">
+                <label for="productDescription" class="form-label">Description</label>
+                <textarea class="form-control" id="productDescription" rows="3" required></textarea>
+            </div>
+            <div class="mb-3">
+                <label for="productPrice" class="form-label">Price (R)</label>
+                <input type="number" class="form-control" id="productPrice" min="0" step="0.01" required>
+            </div>
+            <div class="mb-3">
+                <label for="productCategory" class="form-label">Category</label>
+                <select class="form-control" id="productCategory" required>
+                    <option value="">Select Category</option>
+                    <option value="skincare">Skincare</option>
+                    <option value="wellness">Wellness</option>
+                    <option value="haircare">Haircare</option>
+                    <option value="makeup">Makeup</option>
+                    <option value="tools">Tools</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="productStock" class="form-label">Stock Quantity</label>
+                <input type="number" class="form-control" id="productStock" min="0" required>
+            </div>
+            <div class="mb-3">
+                <label for="productImage" class="form-label">Image URL (Optional)</label>
+                <input type="url" class="form-control" id="productImage" placeholder="https://example.com/image.jpg">
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Add Product</button>
+        </form>
+    `;
+}
+
+function getVoucherForm() {
+    return `
+        <form id="voucherForm" onsubmit="handleVoucherSubmit(event)">
+            <div class="mb-3">
+                <label for="voucherCode" class="form-label">Voucher Code</label>
+                <input type="text" class="form-control" id="voucherCode" required>
+            </div>
+            <div class="mb-3">
+                <label for="voucherDescription" class="form-label">Description</label>
+                <input type="text" class="form-control" id="voucherDescription" required>
+            </div>
+            <div class="mb-3">
+                <label for="voucherDiscount" class="form-label">Discount</label>
+                <input type="number" class="form-control" id="voucherDiscount" min="0" required>
+            </div>
+            <div class="mb-3">
+                <label for="voucherType" class="form-label">Discount Type</label>
+                <select class="form-control" id="voucherType" required>
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="fixed">Fixed Amount (R)</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="voucherMaxUses" class="form-label">Maximum Uses</label>
+                <input type="number" class="form-control" id="voucherMaxUses" min="1" required>
+            </div>
+            <div class="mb-3">
+                <label for="voucherValidUntil" class="form-label">Valid Until</label>
+                <input type="date" class="form-control" id="voucherValidUntil" required>
+            </div>
+            <div class="mb-3">
+                <label for="voucherAssignedTo" class="form-label">Assign to Staff (Optional)</label>
+                <select class="form-control" id="voucherAssignedTo">
+                    <option value="">Not assigned</option>
+                    <!-- Staff options will be populated dynamically -->
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Create Voucher</button>
+        </form>
+    `;
+}
+
+// Form submission handlers
+async function handleServiceSubmit(event) {
+    event.preventDefault();
+    
+    const serviceData = {
+        name: document.getElementById('serviceName').value,
+        description: document.getElementById('serviceDescription').value,
+        price: parseFloat(document.getElementById('servicePrice').value),
+        duration: document.getElementById('serviceDuration').value,
+        category: document.getElementById('serviceCategory').value,
+        image: document.getElementById('serviceImage').value || ''
+    };
+
+    try {
+        const result = await apiCall('/services', {
+            method: 'POST',
+            body: serviceData
+        });
+
+        showNotification('Service added successfully!', 'success');
+        
+        // Close modal and refresh services
+        bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide();
+        loadServices();
+        loadDashboard(); // Refresh dashboard data
+        
+    } catch (error) {
+        showNotification('Failed to add service: ' + error.message, 'error');
+    }
+}
+
+async function handleProductSubmit(event) {
+    event.preventDefault();
+    
+    const productData = {
+        name: document.getElementById('productName').value,
+        description: document.getElementById('productDescription').value,
+        price: parseFloat(document.getElementById('productPrice').value),
+        category: document.getElementById('productCategory').value,
+        stockQuantity: parseInt(document.getElementById('productStock').value),
+        image: document.getElementById('productImage').value || '',
+        inStock: true
+    };
+
+    try {
+        const result = await apiCall('/products', {
+            method: 'POST',
+            body: productData
+        });
+
+        showNotification('Product added successfully!', 'success');
+        
+        // Close modal and refresh products
+        bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide();
+        loadProducts();
+        loadDashboard(); // Refresh dashboard data
+        
+    } catch (error) {
+        showNotification('Failed to add product: ' + error.message, 'error');
+    }
+}
+
+async function handleVoucherSubmit(event) {
+    event.preventDefault();
+    
+    const voucherData = {
+        code: document.getElementById('voucherCode').value,
+        description: document.getElementById('voucherDescription').value,
+        discount: parseFloat(document.getElementById('voucherDiscount').value),
+        type: document.getElementById('voucherType').value,
+        maxUses: parseInt(document.getElementById('voucherMaxUses').value),
+        validUntil: document.getElementById('voucherValidUntil').value,
+        assignedTo: document.getElementById('voucherAssignedTo').value || undefined,
+        isActive: true,
+        usedCount: 0
+    };
+
+    try {
+        const result = await apiCall('/vouchers', {
+            method: 'POST',
+            body: voucherData
+        });
+
+        showNotification('Voucher created successfully!', 'success');
+        
+        // Close modal
+        bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide();
+        
+    } catch (error) {
+        showNotification('Failed to create voucher: ' + error.message, 'error');
+    }
+}
+
+// Populate staff dropdown in voucher form
+function populateVoucherStaffDropdown() {
+    const staffDropdown = document.getElementById('voucherAssignedTo');
+    if (!staffDropdown) return;
+
+    loadStaffMembers().then(staffMembers => {
+        // Clear existing options except the first one
+        while (staffDropdown.options.length > 1) {
+            staffDropdown.remove(1);
+        }
+
+        // Add staff options
+        staffMembers.forEach(staff => {
+            const option = document.createElement('option');
+            option.value = staff._id;
+            option.textContent = `${staff.name} (${staff.role})`;
+            staffDropdown.appendChild(option);
+        });
+    }).catch(error => {
+        console.error('Failed to populate voucher staff dropdown:', error);
+    });
+}
+
+// Update the showAdminModal function to populate staff dropdown when showing voucher form
+function showAdminModal(type) {
+    const modalTitle = document.getElementById('adminModalTitle');
+    const modalBody = document.getElementById('adminModalBody');
+    
+    if (!modalTitle || !modalBody) {
+        console.error('Admin modal elements not found');
+        return;
+    }
+
+    switch (type) {
+        case 'addService':
+            modalTitle.textContent = 'Add New Service';
+            modalBody.innerHTML = getServiceForm();
+            break;
+        case 'addProduct':
+            modalTitle.textContent = 'Add New Product';
+            modalBody.innerHTML = getProductForm();
+            break;
+        case 'addVoucher':
+            modalTitle.textContent = 'Create New Voucher';
+            modalBody.innerHTML = getVoucherForm();
+            // Populate staff dropdown for voucher assignment
+            setTimeout(() => populateVoucherStaffDropdown(), 100);
+            break;
+        default:
+            console.error('Unknown modal type:', type);
+            return;
+    }
+
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('adminModal'));
+    modal.show();
+}
+
 // In your handleRegister function, add the same logic:
 async function handleRegister(e) {
     e.preventDefault();

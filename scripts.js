@@ -95,7 +95,6 @@ async function fetchCurrentUser() {
     }
 }
 
-// In your handleLogin function, add this after successful login:
 async function handleLogin(e) {
     e.preventDefault();
 
@@ -154,6 +153,8 @@ function showAdminModal(type) {
         case 'addVoucher':
             modalTitle.textContent = 'Create New Voucher';
             modalBody.innerHTML = getVoucherForm();
+            // Populate staff dropdown for voucher assignment
+            setTimeout(() => populateVoucherStaffDropdown(), 100);
             break;
         default:
             console.error('Unknown modal type:', type);
@@ -169,32 +170,31 @@ function getServiceForm() {
     return `
         <form id="serviceForm" onsubmit="handleServiceSubmit(event)">
             <div class="mb-3">
-                <label for="serviceName" class="form-label">Service Name</label>
+                <label for="serviceName" class="form-label">Service Name *</label>
                 <input type="text" class="form-control" id="serviceName" required>
             </div>
             <div class="mb-3">
-                <label for="serviceDescription" class="form-label">Description</label>
+                <label for="serviceDescription" class="form-label">Description *</label>
                 <textarea class="form-control" id="serviceDescription" rows="3" required></textarea>
             </div>
             <div class="mb-3">
-                <label for="servicePrice" class="form-label">Price (R)</label>
+                <label for="servicePrice" class="form-label">Price (R) *</label>
                 <input type="number" class="form-control" id="servicePrice" min="0" step="0.01" required>
             </div>
             <div class="mb-3">
-                <label for="serviceDuration" class="form-label">Duration</label>
-                <input type="text" class="form-control" id="serviceDuration" placeholder="e.g., 60 min" required>
+                <label for="serviceDuration" class="form-label">Duration (minutes) *</label>
+                <input type="number" class="form-control" id="serviceDuration" min="1" required placeholder="e.g., 60">
             </div>
             <div class="mb-3">
-                <label for="serviceCategory" class="form-label">Category</label>
+                <label for="serviceCategory" class="form-label">Category *</label>
                 <select class="form-control" id="serviceCategory" required>
                     <option value="">Select Category</option>
-                    <option value="massage">Massage</option>
+                    <option value="hair">Hair</option>
+                    <option value="spa">Spa</option>
                     <option value="skincare">Skincare</option>
+                    <option value="nails">Nails</option>
                     <option value="makeup">Makeup</option>
                     <option value="wellness">Wellness</option>
-                    <option value="nails">Nails</option>
-                    <option value="haircare">Haircare</option>
-                    <option value="spa">Spa</option>
                 </select>
             </div>
             <div class="mb-3">
@@ -292,13 +292,25 @@ async function handleServiceSubmit(event) {
     event.preventDefault();
     
     const serviceData = {
-        name: document.getElementById('serviceName').value,
-        description: document.getElementById('serviceDescription').value,
+        name: document.getElementById('serviceName').value.trim(),
+        description: document.getElementById('serviceDescription').value.trim(),
         price: parseFloat(document.getElementById('servicePrice').value),
-        duration: document.getElementById('serviceDuration').value,
+        duration: parseInt(document.getElementById('serviceDuration').value) + ' min', // Fixed duration format
         category: document.getElementById('serviceCategory').value,
-        image: document.getElementById('serviceImage').value || ''
+        image: document.getElementById('serviceImage').value.trim() || '',
+        inStock: true
     };
+
+    // Validation
+    if (!serviceData.name || !serviceData.description || isNaN(serviceData.price) || !serviceData.duration || !serviceData.category) {
+        showNotification('Please fill in all required fields correctly', 'error');
+        return;
+    }
+
+    if (serviceData.price <= 0) {
+        showNotification('Price must be greater than 0', 'error');
+        return;
+    }
 
     try {
         const result = await apiCall('/services', {
@@ -322,14 +334,30 @@ async function handleProductSubmit(event) {
     event.preventDefault();
     
     const productData = {
-        name: document.getElementById('productName').value,
-        description: document.getElementById('productDescription').value,
+        name: document.getElementById('productName').value.trim(),
+        description: document.getElementById('productDescription').value.trim(),
         price: parseFloat(document.getElementById('productPrice').value),
         category: document.getElementById('productCategory').value,
         stockQuantity: parseInt(document.getElementById('productStock').value),
-        image: document.getElementById('productImage').value || '',
+        image: document.getElementById('productImage').value.trim() || '',
         inStock: true
     };
+
+    // Validation
+    if (!productData.name || !productData.description || isNaN(productData.price) || !productData.category || isNaN(productData.stockQuantity)) {
+        showNotification('Please fill in all required fields correctly', 'error');
+        return;
+    }
+
+    if (productData.price <= 0) {
+        showNotification('Price must be greater than 0', 'error');
+        return;
+    }
+
+    if (productData.stockQuantity < 0) {
+        showNotification('Stock quantity cannot be negative', 'error');
+        return;
+    }
 
     try {
         const result = await apiCall('/products', {
@@ -353,16 +381,25 @@ async function handleVoucherSubmit(event) {
     event.preventDefault();
     
     const voucherData = {
-        code: document.getElementById('voucherCode').value,
-        description: document.getElementById('voucherDescription').value,
-        discount: parseFloat(document.getElementById('voucherDiscount').value),
-        type: document.getElementById('voucherType').value,
-        maxUses: parseInt(document.getElementById('voucherMaxUses').value),
-        validUntil: document.getElementById('voucherValidUntil').value,
+        code: document.getElementById('voucherCode').value.trim(),
+        description: document.getElementById('voucherDescription').value.trim(),
+        discountValue: parseFloat(document.getElementById('voucherDiscount').value),
+        discountType: document.getElementById('voucherType').value,
+        expiresAt: document.getElementById('voucherValidUntil').value,
         assignedTo: document.getElementById('voucherAssignedTo').value || undefined,
-        isActive: true,
-        usedCount: 0
+        isActive: true
     };
+
+    // Validation
+    if (!voucherData.code || !voucherData.description || isNaN(voucherData.discountValue) || !voucherData.expiresAt) {
+        showNotification('Please fill in all required fields correctly', 'error');
+        return;
+    }
+
+    if (voucherData.discountValue <= 0) {
+        showNotification('Discount value must be greater than 0', 'error');
+        return;
+    }
 
     try {
         const result = await apiCall('/vouchers', {
@@ -403,50 +440,19 @@ function populateVoucherStaffDropdown() {
     });
 }
 
-// Update the showAdminModal function to populate staff dropdown when showing voucher form
-function showAdminModal(type) {
-    const modalTitle = document.getElementById('adminModalTitle');
-    const modalBody = document.getElementById('adminModalBody');
-    
-    if (!modalTitle || !modalBody) {
-        console.error('Admin modal elements not found');
-        return;
-    }
-
-    switch (type) {
-        case 'addService':
-            modalTitle.textContent = 'Add New Service';
-            modalBody.innerHTML = getServiceForm();
-            break;
-        case 'addProduct':
-            modalTitle.textContent = 'Add New Product';
-            modalBody.innerHTML = getProductForm();
-            break;
-        case 'addVoucher':
-            modalTitle.textContent = 'Create New Voucher';
-            modalBody.innerHTML = getVoucherForm();
-            // Populate staff dropdown for voucher assignment
-            setTimeout(() => populateVoucherStaffDropdown(), 100);
-            break;
-        default:
-            console.error('Unknown modal type:', type);
-            return;
-    }
-
-    // Show the modal
-    const modal = new bootstrap.Modal(document.getElementById('adminModal'));
-    modal.show();
-}
-
-// In your handleRegister function, add the same logic:
 async function handleRegister(e) {
     e.preventDefault();
 
-    const name = document.getElementById('registerName').value;
-    const email = document.getElementById('registerEmail').value;
+    const name = document.getElementById('registerName').value.trim();
+    const email = document.getElementById('registerEmail').value.trim();
     const password = document.getElementById('registerPassword').value;
-    const phone = document.getElementById('registerPhone').value;
-    const address = document.getElementById('registerAddress').value;
+    const phone = document.getElementById('registerPhone').value.trim();
+    const address = document.getElementById('registerAddress').value.trim();
+
+    if (!name || !email || !password || !phone || !address) {
+        showNotification('Please fill in all required fields', 'error');
+        return;
+    }
 
     try {
         const data = await apiCall('/auth/register', {
@@ -530,7 +536,9 @@ function showSection(sectionId) {
     }
 
     if (sectionId === 'dashboard' && currentUser) {
-        loadDashboard();
+        // Initialize charts before loading dashboard
+        initializeCharts();
+        setTimeout(() => loadDashboard(), 100);
     }
 
     if (sectionId === 'shop') {
@@ -659,7 +667,7 @@ function updateCartDisplay() {
                     </div>
                 </div>
                 <div>
-                    <span>R ${itemTotal}</span>
+                    <span>R ${itemTotal.toFixed(2)}</span>
                     <button class="btn btn-sm btn-outline-danger ms-2" onclick="removeFromCart(${index})">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -671,7 +679,7 @@ function updateCartDisplay() {
     cartItems.innerHTML += `
         <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
             <strong>Total</strong>
-            <strong>R ${total}</strong>
+            <strong>R ${total.toFixed(2)}</strong>
         </div>
     `;
 
@@ -899,7 +907,23 @@ async function confirmBooking(e) {
 // ===== GIFT PACKAGES =====
 async function loadGiftPackages() {
     try {
-        const data = await apiCall('/gift-packages');
+        // Try different endpoints for gift packages
+        let data;
+        try {
+            data = await apiCall('/gift-packages');
+        } catch (error) {
+            console.log('Gift packages endpoint not available, trying services as fallback');
+            data = await apiCall('/services');
+            // Transform services data to gift packages format
+            if (data.services) {
+                data.giftPackages = data.services.map(service => ({
+                    ...service,
+                    basePrice: service.price,
+                    includes: [service.description]
+                }));
+            }
+        }
+        
         const giftPackages = data.giftPackages || data.data || data || [];
         const container = document.getElementById('giftPackagesContainer');
 
@@ -924,7 +948,7 @@ async function loadGiftPackages() {
         giftPackages.forEach(gift => {
             const includesList = Array.isArray(gift.includes)
                 ? gift.includes.map(item => `<li>${item}</li>`).join('')
-                : '<li>No details available</li>';
+                : `<li>${gift.description || 'No details available'}</li>`;
 
             const giftCard = `
                 <div class="col-md-4 mb-4">
@@ -1026,9 +1050,9 @@ async function populateGiftStaffDropdown() {
 async function createGift(e) {
     e.preventDefault();
 
-    const recipientName = document.getElementById('recipientName').value;
-    const recipientEmail = document.getElementById('recipientEmail').value;
-    const giftMessage = document.getElementById('giftMessage').value;
+    const recipientName = document.getElementById('recipientName').value.trim();
+    const recipientEmail = document.getElementById('recipientEmail').value.trim();
+    const giftMessage = document.getElementById('giftMessage').value.trim();
     const deliveryDate = document.getElementById('deliveryDate').value;
     const assignedStaff = document.getElementById('giftStaff').value;
 
@@ -1095,36 +1119,31 @@ async function loadAdminDashboard() {
 
         // Use the totalRevenue from dashboard API
         const totalRevenue = data.stats?.totalRevenue || 0;
-        document.getElementById('totalRevenue').textContent = 'R ' + totalRevenue;
-
+        document.getElementById('totalRevenue').textContent = 'R ' + totalRevenue.toFixed(2);
 
         console.log('💰 Total Revenue Updated:', totalRevenue);
 
-        // Add this after receiving the data but before creating charts
-        if (data.monthlyRevenue && data.monthlyRevenue.labels) {
-            // Reverse to show chronological order (oldest to newest)
-            data.monthlyRevenue.labels = data.monthlyRevenue.labels.reverse();
-            data.monthlyRevenue.data = data.monthlyRevenue.data.reverse();
-            console.log('🔄 Monthly revenue data reversed for proper chronological display');
-        }
+        // Load charts with proper error handling
+        setTimeout(() => {
+            try {
+                if (data.monthlyRevenue) {
+                    createRevenueChart(data.monthlyRevenue);
+                }
 
-        // Load revenue chart
-        if (data.monthlyRevenue) {
-            createRevenueChart(data.monthlyRevenue);
-        }
+                if (data.staffPerformance) {
+                    createStaffPerformanceChart(data.staffPerformance);
+                }
 
-        // Load staff performance chart
-        if (data.staffPerformance) {
-            createStaffPerformanceChart(data.staffPerformance);
-        }
+                if (data.popularServices) {
+                    createServicesChart(data.popularServices);
+                }
 
-        // Load popular services chart
-        if (data.popularServices) {
-            createServicesChart(data.popularServices);
-        }
-
-        // Load recent activity
-        updateRecentActivity(data.recentActivity || []);
+                // Load recent activity
+                updateRecentActivity(data.recentActivity || []);
+            } catch (chartError) {
+                console.error('Chart rendering error:', chartError);
+            }
+        }, 500);
 
     } catch (error) {
         console.error('Failed to load admin dashboard:', error);
@@ -1139,7 +1158,7 @@ async function loadStaffDashboard() {
         document.getElementById('staffSales').textContent = data.stats?.totalSales || 0;
         document.getElementById('staffClients').textContent = data.stats?.totalClients || 0;
         document.getElementById('staffHours').textContent = data.stats?.totalHours || 0;
-        document.getElementById('staffCommission').textContent = 'R ' + (data.stats?.totalCommission || 0);
+        document.getElementById('staffCommission').textContent = 'R ' + (data.stats?.totalCommission || 0).toFixed(2);
 
         // Update appointments
         const appointmentsList = document.getElementById('staffAppointments');
@@ -1163,7 +1182,7 @@ async function loadStaffDashboard() {
                 recentSalesList.innerHTML = data.recentSales.map(sale => `
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         ${sale.description || 'Sale'}
-                        <span class="badge bg-success rounded-pill">R ${sale.amount || 0}</span>
+                        <span class="badge bg-success rounded-pill">R ${(sale.amount || 0).toFixed(2)}</span>
                     </li>
                 `).join('');
             } else {
@@ -1178,6 +1197,26 @@ async function loadStaffDashboard() {
 }
 
 // ===== CHART FUNCTIONS =====
+function initializeCharts() {
+    // Destroy any existing charts
+    Object.values(chartInstances).forEach(chart => {
+        if (chart) {
+            try {
+                chart.destroy();
+            } catch (e) {
+                console.log('Error destroying chart:', e);
+            }
+        }
+    });
+    
+    // Reset chart instances
+    chartInstances = {
+        revenueChart: null,
+        staffPerformanceChart: null,
+        servicesChart: null
+    };
+}
+
 function createRevenueChart(monthlyRevenueData) {
     const ctx = document.getElementById('revenueChart');
     if (!ctx) {
@@ -1193,51 +1232,73 @@ function createRevenueChart(monthlyRevenueData) {
     // Process data for chart
     let labels, data;
 
-    if (Array.isArray(monthlyRevenueData)) {
-        labels = monthlyRevenueData.map(item => item.monthName || `Month ${item._id}`);
-        data = monthlyRevenueData.map(item => item.revenue || 0);
-    } else {
-        // Object format
+    if (typeof monthlyRevenueData === 'object' && !Array.isArray(monthlyRevenueData)) {
+        // Object format { "Month Year": amount }
         labels = Object.keys(monthlyRevenueData);
         data = Object.values(monthlyRevenueData);
+    } else if (Array.isArray(monthlyRevenueData)) {
+        // Array format
+        labels = monthlyRevenueData.map(item => item.month || item.label || `Month ${item._id}`);
+        data = monthlyRevenueData.map(item => item.revenue || item.data || item.amount || 0);
+    } else {
+        console.error('Invalid monthly revenue data format:', monthlyRevenueData);
+        return;
     }
 
-    chartInstances.revenueChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Monthly Revenue (R)',
-                data: data,
-                borderColor: '#4e73df',
-                backgroundColor: 'rgba(78, 115, 223, 0.1)',
-                tension: 0.4,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Revenue Trend'
-                }
+    // Sort chronologically
+    const sortedData = sortMonthlyRevenueData({ labels, data });
+    labels = sortedData.labels;
+    data = sortedData.data;
+
+    try {
+        chartInstances.revenueChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Monthly Revenue (R)',
+                    data: data,
+                    borderColor: '#4e73df',
+                    backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 2
+                }]
             },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function (value) {
-                            return 'R ' + value;
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Revenue Trend'
+                    },
+                    legend: {
+                        display: true
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function (value) {
+                                return 'R ' + value;
+                            }
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    } catch (error) {
+        console.error('Error creating revenue chart:', error);
+    }
 }
 
-// Function to sort monthly revenue data chronologically
 function sortMonthlyRevenueData(monthlyRevenue) {
     const months = [
         'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -1280,38 +1341,48 @@ function createStaffPerformanceChart(staffPerformance) {
     const labels = staffPerformance.map(staff => staff.name);
     const data = staffPerformance.map(staff => staff.totalRevenue);
 
-    chartInstances.staffPerformanceChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Revenue Generated (R)',
-                data: data,
-                backgroundColor: 'rgba(78, 115, 223, 0.8)',
-                borderColor: '#4e73df',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Staff Performance'
-                }
+    try {
+        chartInstances.staffPerformanceChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Revenue Generated (R)',
+                    data: data,
+                    backgroundColor: 'rgba(78, 115, 223, 0.8)',
+                    borderColor: '#4e73df',
+                    borderWidth: 1
+                }]
             },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function (value) {
-                            return 'R ' + value;
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Staff Performance'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function (value) {
+                                return 'R ' + value;
+                            }
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    } catch (error) {
+        console.error('Error creating staff performance chart:', error);
+    }
 }
 
 function createServicesChart(popularServices) {
@@ -1328,45 +1399,50 @@ function createServicesChart(popularServices) {
     const labels = popularServices.map(service => service.name);
     const data = popularServices.map(service => service.count);
 
-    chartInstances.servicesChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: [
-                    '#4e73df',
-                    '#1cc88a',
-                    '#36b9cc',
-                    '#f6c23e',
-                    '#e74a3b'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Popular Services'
+    try {
+        chartInstances.servicesChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: [
+                        '#4e73df',
+                        '#1cc88a',
+                        '#36b9cc',
+                        '#f6c23e',
+                        '#e74a3b'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Popular Services'
+                    }
                 }
             }
-        }
-    });
+        });
+    } catch (error) {
+        console.error('Error creating services chart:', error);
+    }
 }
 
 function updateRecentActivity(activities) {
     const recentActivityList = document.getElementById('recentActivity');
     if (!recentActivityList) return;
 
-    if (activities.length > 0) {
+    if (activities && activities.length > 0) {
         recentActivityList.innerHTML = activities.map(activity => `
             <li class="list-group-item">
                 <div class="d-flex w-100 justify-content-between">
-                    <h6 class="mb-1">${activity.title || activity.description}</h6>
-                    <small>${new Date(activity.timestamp || activity.date).toLocaleDateString()}</small>
+                    <h6 class="mb-1">${activity.title || activity.description || 'Activity'}</h6>
+                    <small>${new Date(activity.timestamp || activity.date || new Date()).toLocaleDateString()}</small>
                 </div>
-                <p class="mb-1">${activity.description || activity.type}</p>
+                <p class="mb-1">${activity.description || activity.type || 'No description'}</p>
             </li>
         `).join('');
     } else {
@@ -1375,7 +1451,6 @@ function updateRecentActivity(activities) {
 }
 
 // ===== STAFF MANAGEMENT =====
-// Updated loadStaffMembers with better error handling
 async function loadStaffMembers() {
     try {
         // Try staff endpoint first with proper headers
@@ -1419,7 +1494,6 @@ async function loadStaffMembers() {
     }
 }
 
-// FIXED VERSION - Replace your current populateStaffDropdowns function
 function populateStaffDropdowns() {
     const dropdownSelectors = [
         '#cartStaff',
@@ -1453,12 +1527,6 @@ function populateStaffDropdowns() {
         });
         
         console.log(`✅ Populated ${populatedCount} dropdowns with ${staffMembers.length} staff members`);
-        
-        // Update the UI counter
-        const counterElement = document.querySelector('[id*="dropdown"]')?.closest('.container')?.querySelector('.dropdown-count');
-        if (counterElement) {
-            counterElement.textContent = populatedCount;
-        }
         
     }).catch(error => {
         console.error('Error populating staff dropdowns:', error);
@@ -1509,13 +1577,19 @@ function safeFormSetup() {
         'loginFormElement': handleLogin,
         'registerFormElement': handleRegister,
         'bookingDetailsForm': confirmBooking,
-        'giftCustomizationForm': createGift
+        'giftCustomizationForm': createGift,
+        'serviceForm': handleServiceSubmit,
+        'productForm': handleProductSubmit,
+        'voucherForm': handleVoucherSubmit
     };
 
     Object.entries(forms).forEach(([formId, handler]) => {
         const form = document.getElementById(formId);
         if (form) {
-            form.addEventListener('submit', handler);
+            // Remove existing event listeners
+            form.replaceWith(form.cloneNode(true));
+            // Add new event listener
+            document.getElementById(formId).addEventListener('submit', handler);
         }
     });
 
@@ -1538,7 +1612,8 @@ document.addEventListener('DOMContentLoaded', function () {
             // ONLY populate staff dropdowns if user is logged in AND is staff/admin
             if (currentUser.role === 'staff' || currentUser.role === 'admin') {
                 console.log('👤 User is staff/admin, populating staff dropdowns...');
-                populateStaffDropdowns();
+                // Small delay to ensure DOM is ready
+                setTimeout(() => populateStaffDropdowns(), 100);
             } else {
                 console.log('👤 User is customer, skipping staff dropdowns');
             }
@@ -1555,8 +1630,8 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('🔐 User not logged in, staff dropdowns will be populated after login');
     }
 
-    // Safe form setup
-    safeFormSetup();
+    // Safe form setup with delay
+    setTimeout(() => safeFormSetup(), 200);
 
     // Set minimum dates
     setMinimumDates();

@@ -95,6 +95,7 @@ async function fetchCurrentUser() {
     }
 }
 
+// In your handleLogin function, add this after successful login:
 async function handleLogin(e) {
     e.preventDefault();
 
@@ -115,6 +116,13 @@ async function handleLogin(e) {
         currentUser = data.user;
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
         updateUIForUser();
+        
+        // POPULATE STAFF DROPDOWNS AFTER LOGIN FOR STAFF/ADMIN USERS
+        if (currentUser.role === 'staff' || currentUser.role === 'admin') {
+            console.log('👤 Staff/admin user logged in, populating staff dropdowns...');
+            populateStaffDropdowns();
+        }
+
         showSection('home');
 
         document.getElementById('loginFormElement').reset();
@@ -124,6 +132,7 @@ async function handleLogin(e) {
     }
 }
 
+// In your handleRegister function, add the same logic:
 async function handleRegister(e) {
     e.preventDefault();
 
@@ -147,6 +156,13 @@ async function handleRegister(e) {
         currentUser = data.user;
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
         updateUIForUser();
+        
+        // POPULATE STAFF DROPDOWNS AFTER REGISTRATION FOR STAFF/ADMIN USERS
+        if (currentUser.role === 'staff' || currentUser.role === 'admin') {
+            console.log('👤 Staff/admin user registered, populating staff dropdowns...');
+            populateStaffDropdowns();
+        }
+
         showSection('home');
 
         document.getElementById('registerFormElement').reset();
@@ -1213,8 +1229,12 @@ document.addEventListener('DOMContentLoaded', function () {
             currentUser = JSON.parse(savedUser);
             updateUIForUser();
 
+            // ONLY populate staff dropdowns if user is logged in AND is staff/admin
             if (currentUser.role === 'staff' || currentUser.role === 'admin') {
+                console.log('👤 User is staff/admin, populating staff dropdowns...');
                 populateStaffDropdowns();
+            } else {
+                console.log('👤 User is customer, skipping staff dropdowns');
             }
 
         } catch (error) {
@@ -1226,6 +1246,7 @@ document.addEventListener('DOMContentLoaded', function () {
     } else {
         currentUser = null;
         updateUIForUser();
+        console.log('🔐 User not logged in, staff dropdowns will be populated after login');
     }
 
     // Safe form setup
@@ -1234,12 +1255,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // Set minimum dates
     setMinimumDates();
 
-    // Load initial data
+    // Load initial data (no auth required)
     loadProducts();
     loadServices();
     loadGiftPackages();
-    populateStaffDropdowns();
-
 
     console.log('✅ Application initialized successfully');
 });

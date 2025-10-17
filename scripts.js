@@ -1053,58 +1053,103 @@ function updateRecentActivity(activities) {
 }
 
 // ===== STAFF MANAGEMENT =====
+// Updated loadStaffMembers with better error handling
 async function loadStaffMembers() {
     try {
-        const data = await apiCall('/users/staff');
-        return data.staff || data.data || data || [];
+        // Try staff endpoint first with proper headers
+        const token = localStorage.getItem('token');
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const staffResponse = await fetch(`${API_BASE}/users/staff`, { headers });
+        
+        if (staffResponse.ok) {
+            const staff = await staffResponse.json();
+            return staff;
+        } else {
+            console.log('Staff endpoint returned error, falling back to all users filter');
+            throw new Error('Staff endpoint failed');
+        }
+        
     } catch (error) {
         console.log('Staff endpoint not available, falling back to all users filter');
+        
         try {
-            const allUsers = await apiCall('/users');
-            const staffMembers = allUsers.filter(user =>
-                user.role === 'staff' || user.role === 'admin'
-            );
-            console.log(`✅ Found ${staffMembers.length} staff members from all users`);
-            return staffMembers;
-        } catch (fallbackError) {
-            console.error('Failed to load staff members:', fallbackError);
+            // If staff endpoint fails, get all users and filter
+            const allUsersResponse = await fetch(`${API_BASE}/users`);
+            if (allUsersResponse.ok) {
+                const allUsers = await allUsersResponse.json();
+                return allUsers.filter(user => user.role === 'staff');
+            } else {
+                throw new Error('All users endpoint failed');
+            }
+        } catch (secondError) {
+            console.log('Failed to load staff members from all users:', secondError.message);
+            
+            // If completely failed, return empty array but don't break the app
             return [];
         }
     }
 }
 
-async function populateStaffDropdowns() {
-    try {
-        const staffMembers = await loadStaffMembers();
-        const staffDropdowns = [
-            document.getElementById('assignedStaff'),
-            document.getElementById('cartStaff'),
-            document.getElementById('giftStaff')
-        ].filter(dropdown => dropdown !== null);
-
-        staffDropdowns.forEach(dropdown => {
+// FIXED VERSION - Replace your current populateStaffDropdowns function
+function populateStaffDropdowns() {
+    const dropdownSelectors = [
+        '#cartStaff',
+        '#assignedStaff', 
+        '#giftStaff'
+    ];
+    
+    let populatedCount = 0;
+    
+    loadStaffMembers().then(staffMembers => {
+        if (!staffMembers || staffMembers.length === 0) {
+            console.log('⚠️ No staff members available for dropdowns');
+            staffMembers = [];
+        }
+        
+        console.log(`👥 Populating ${dropdownSelectors.length} dropdowns with ${staffMembers.length} staff members`);
+        
+        dropdownSelectors.forEach(selector => {
+            const dropdown = document.querySelector(selector);
             if (dropdown) {
-                while (dropdown.options.length > 1) {
-                    dropdown.remove(1);
-                }
-
-                if (staffMembers.length > 0) {
-                    staffMembers.forEach(staff => {
-                        const option = document.createElement('option');
-                        option.value = staff._id;
-                        option.textContent = `${staff.name} (${staff.role})`;
-                        dropdown.appendChild(option);
-                    });
-                }
+                // Clear and populate the dropdown
+                dropdown.innerHTML = '<option value="">Select staff member</option>' +
+                    staffMembers.map(staff => 
+                        `<option value="${staff._id}">${staff.name}</option>`
+                    ).join('');
+                populatedCount++;
+                console.log(`✅ Populated dropdown: ${selector}`);
+            } else {
+                console.log(`❌ Dropdown not found (might be in hidden section): ${selector}`);
             }
         });
-
-        console.log(`✅ Populated ${staffDropdowns.length} dropdowns with ${staffMembers.length} staff members`);
-        return staffMembers;
-    } catch (error) {
-        console.error('Failed to populate staff dropdowns:', error);
-        return [];
-    }
+        
+        console.log(`✅ Populated ${populatedCount} dropdowns with ${staffMembers.length} staff members`);
+        
+        // Update the UI counter
+        const counterElement = document.querySelector('[id*="dropdown"]')?.closest('.container')?.querySelector('.dropdown-count');
+        if (counterElement) {
+            counterElement.textContent = populatedCount;
+        }
+        
+    }).catch(error => {
+        console.error('Error populating staff dropdowns:', error);
+        // Set all dropdowns to empty but don't break the app
+        dropdownSelectors.forEach(selector => {
+            const dropdown = document.querySelector(selector);
+            if (dropdown) {
+                dropdown.innerHTML = '<option value="">No staff available</option>';
+            }
+        });
+    });
+    
+    return populatedCount;
 }
 
 // ===== UTILITY FUNCTIONS =====
@@ -1193,6 +1238,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadProducts();
     loadServices();
     loadGiftPackages();
+    populateStaffDropdowns();
 
 
     console.log('✅ Application initialized successfully');

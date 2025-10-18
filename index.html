@@ -546,6 +546,163 @@
         </section>
     </div>
 
+    <!-- Customer Dashboard Section -->
+<div id="customerDashboard" style="display: none;">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="dashboard-card text-center">
+                <i class="fas fa-shopping-bag fa-2x mb-2"></i>
+                <h4 class="stats-number" id="customerOrders">0</h4>
+                <p>Total Orders</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="dashboard-card text-center">
+                <i class="fas fa-calendar-check fa-2x mb-2"></i>
+                <h4 class="stats-number" id="customerBookings">0</h4>
+                <p>Total Bookings</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="dashboard-card text-center">
+                <i class="fas fa-gift fa-2x mb-2"></i>
+                <h4 class="stats-number" id="customerGifts">0</h4>
+                <p>Gifts Sent</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="dashboard-card text-center">
+                <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
+                <h4 class="stats-number" id="customerSpent">R 0</h4>
+                <p>Total Spent</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Controls -->
+    <div class="customer-controls mb-4">
+        <h4>My Activities</h4>
+        <div class="row">
+            <div class="col-md-4">
+                <button class="btn btn-info w-100 mb-2" onclick="showCustomerSection('orders')">
+                    <i class="fas fa-shopping-bag me-2"></i>My Orders
+                </button>
+            </div>
+            <div class="col-md-4">
+                <button class="btn btn-info w-100 mb-2" onclick="showCustomerSection('bookings')">
+                    <i class="fas fa-calendar me-2"></i>My Bookings
+                </button>
+            </div>
+            <div class="col-md-4">
+                <button class="btn btn-info w-100 mb-2" onclick="showCustomerSection('gifts')">
+                    <i class="fas fa-gift me-2"></i>My Gifts
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Activities Sections -->
+    <div id="customerOrdersSection" class="customer-section">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>My Orders</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="printCustomerOrders()">
+                    <i class="fas fa-print me-1"></i>Print
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Order ID</th>
+                                <th>Items</th>
+                                <th>Staff</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Receipt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customerOrdersBody">
+                            <tr>
+                                <td colspan="7" class="text-center">No orders found</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="customerBookingsSection" class="customer-section" style="display: none;">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>My Bookings</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="printCustomerBookings()">
+                    <i class="fas fa-print me-1"></i>Print
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Service</th>
+                                <th>Staff</th>
+                                <th>Appointment</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Receipt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customerBookingsBody">
+                            <tr>
+                                <td colspan="7" class="text-center">No bookings found</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="customerGiftsSection" class="customer-section" style="display: none;">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>My Gift Orders</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="printCustomerGifts()">
+                    <i class="fas fa-print me-1"></i>Print
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Recipient</th>
+                                <th>Gift Package</th>
+                                <th>Staff</th>
+                                <th>Delivery Date</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Receipt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customerGiftsBody">
+                            <tr>
+                                <td colspan="8" class="text-center">No gift orders found</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
     <!-- Footer -->
     <footer>
         <div class="container">

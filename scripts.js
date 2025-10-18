@@ -1643,3 +1643,609 @@ document.addEventListener('DOMContentLoaded', function () {
 
     console.log('✅ Application initialized successfully');
 });
+
+// ===== RECEIPT & PRINTING FUNCTIONS =====
+async function generateReceipt(type, id) {
+    try {
+        const data = await apiCall(`/dashboard/receipt/${type}/${id}`);
+        
+        if (data.success && data.receipt) {
+            showReceiptModal(data.receipt, data.company);
+        } else {
+            throw new Error('Failed to generate receipt');
+        }
+    } catch (error) {
+        console.error('Error generating receipt:', error);
+        showNotification('Failed to generate receipt: ' + error.message, 'error');
+    }
+}
+
+function showReceiptModal(receipt, company) {
+    const receiptContent = document.getElementById('receiptContent');
+    
+    let receiptHTML = `
+        <div class="receipt">
+            <div class="receipt-header">
+                <h2>${company.name}</h2>
+                <p>${company.address}</p>
+                <p>${company.phone} | ${company.email}</p>
+                <p><strong>Receipt</strong></p>
+            </div>
+            
+            <div class="receipt-details">
+                <div class="receipt-item">
+                    <span>Receipt ID:</span>
+                    <span>${receipt.id}</span>
+                </div>
+                <div class="receipt-item">
+                    <span>Date:</span>
+                    <span>${new Date(receipt.date).toLocaleString()}</span>
+                </div>
+                <div class="receipt-item">
+                    <span>Customer:</span>
+                    <span>${receipt.customer}</span>
+                </div>
+                <div class="receipt-item">
+                    <span>Email:</span>
+                    <span>${receipt.customerEmail}</span>
+                </div>
+    `;
+
+    // Add type-specific details
+    if (receipt.type === 'booking') {
+        receiptHTML += `
+                <div class="receipt-item">
+                    <span>Service:</span>
+                    <span>${receipt.service}</span>
+                </div>
+                <div class="receipt-item">
+                    <span>Staff:</span>
+                    <span>${receipt.staff}</span>
+                </div>
+                <div class="receipt-item">
+                    <span>Appointment:</span>
+                    <span>${new Date(receipt.bookingDate).toLocaleDateString()} at ${receipt.bookingTime}</span>
+                </div>
+                <div class="receipt-item">
+                    <span>Duration:</span>
+                    <span>${receipt.duration}</span>
+                </div>
+        `;
+    } else if (receipt.type === 'order') {
+        receiptHTML += `
+                <div class="receipt-item">
+                    <span>Processed By:</span>
+                    <span>${receipt.processedBy}</span>
+                </div>
+                <div class="receipt-item">
+                    <span>Items:</span>
+                    <span></span>
+                </div>
+        `;
+        receipt.items.forEach(item => {
+            receiptHTML += `
+                <div class="receipt-item" style="padding-left: 20px;">
+                    <span>${item.quantity}x ${item.product}</span>
+                    <span>R ${(item.subtotal || 0).toFixed(2)}</span>
+                </div>
+            `;
+        });
+    } else if (receipt.type === 'gift') {
+        receiptHTML += `
+                <div class="receipt-item">
+                    <span>Recipient:</span>
+                    <span>${receipt.recipient}</span>
+                </div>
+                <div class="receipt-item">
+                    <span>Recipient Email:</span>
+                    <span>${receipt.recipientEmail}</span>
+                </div>
+                <div class="receipt-item">
+                    <span>Gift Package:</span>
+                    <span>${receipt.giftPackage}</span>
+                </div>
+                <div class="receipt-item">
+                    <span>Delivery Date:</span>
+                    <span>${new Date(receipt.deliveryDate).toLocaleDateString()}</span>
+                </div>
+                <div class="receipt-item">
+                    <span>Assigned Staff:</span>
+                    <span>${receipt.assignedStaff || 'Not assigned'}</span>
+                </div>
+        `;
+    }
+
+    receiptHTML += `
+                <div class="receipt-total">
+                    <span>Total Amount:</span>
+                    <span>R ${(receipt.amount || receipt.total || 0).toFixed(2)}</span>
+                </div>
+            </div>
+            
+            <div class="receipt-footer">
+                <p>Thank you for choosing ${company.name}!</p>
+                <p>For any inquiries, please contact ${company.email} or call ${company.phone}</p>
+                <p>Generated on ${new Date().toLocaleString()}</p>
+            </div>
+        </div>
+    `;
+
+    receiptContent.innerHTML = receiptHTML;
+    
+    // Show the modal
+    const receiptModal = new bootstrap.Modal(document.getElementById('receiptModal'));
+    receiptModal.show();
+}
+
+function printReceipt() {
+    window.print();
+}
+
+// ===== USER ACTIVITY FUNCTIONS =====
+async function viewUserActivity(userId, userName) {
+    try {
+        const data = await apiCall(`/dashboard/user-activity/${userId}`);
+        
+        if (data.success && data.userActivity) {
+            showUserActivityModal(data.userActivity, userName);
+        } else {
+            throw new Error('Failed to load user activity');
+        }
+    } catch (error) {
+        console.error('Error loading user activity:', error);
+        showNotification('Failed to load user activity: ' + error.message, 'error');
+    }
+}
+
+function showUserActivityModal(userActivity, userName) {
+    const title = document.getElementById('userActivityTitle');
+    const content = document.getElementById('userActivityContent');
+    
+    title.textContent = `Activity for ${userName}`;
+    
+    let activityHTML = `
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6>Bookings (${userActivity.bookings.length})</h6>
+                    </div>
+                    <div class="card-body">
+    `;
+    
+    if (userActivity.bookings.length > 0) {
+        userActivity.bookings.forEach(booking => {
+            activityHTML += `
+                <div class="activity-item booking">
+                    <strong>${booking.service?.name || 'Service'}</strong><br>
+                    <small>Date: ${new Date(booking.date).toLocaleDateString()} at ${booking.time}</small><br>
+                    <small>Staff: ${booking.staff?.name || 'Not assigned'}</small><br>
+                    <small>Status: <span class="badge bg-${getStatusBadgeColor(booking.status)}">${booking.status}</span></small>
+                    <button class="btn btn-sm btn-outline-primary mt-1" onclick="generateReceipt('booking', '${booking._id}')">
+                        <i class="fas fa-receipt me-1"></i>Receipt
+                    </button>
+                </div>
+            `;
+        });
+    } else {
+        activityHTML += `<p class="text-muted">No bookings found</p>`;
+    }
+    
+    activityHTML += `
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6>Orders (${userActivity.orders.length})</h6>
+                    </div>
+                    <div class="card-body">
+    `;
+    
+    if (userActivity.orders.length > 0) {
+        userActivity.orders.forEach(order => {
+            activityHTML += `
+                <div class="activity-item order">
+                    <strong>Order #${order._id.slice(-6)}</strong><br>
+                    <small>Items: ${order.items?.length || 0}</small><br>
+                    <small>Total: R ${(order.finalTotal || order.total || 0).toFixed(2)}</small><br>
+                    <small>Status: <span class="badge bg-${getStatusBadgeColor(order.status)}">${order.status}</span></small>
+                    <button class="btn btn-sm btn-outline-primary mt-1" onclick="generateReceipt('order', '${order._id}')">
+                        <i class="fas fa-receipt me-1"></i>Receipt
+                    </button>
+                </div>
+            `;
+        });
+    } else {
+        activityHTML += `<p class="text-muted">No orders found</p>`;
+    }
+    
+    activityHTML += `
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6>Gift Orders (${userActivity.giftOrders.length})</h6>
+                    </div>
+                    <div class="card-body">
+    `;
+    
+    if (userActivity.giftOrders.length > 0) {
+        userActivity.giftOrders.forEach(gift => {
+            activityHTML += `
+                <div class="activity-item gift">
+                    <strong>Gift for ${gift.recipientName}</strong><br>
+                    <small>Package: ${gift.giftPackage?.name || 'Gift'}</small><br>
+                    <small>Delivery: ${new Date(gift.deliveryDate).toLocaleDateString()}</small><br>
+                    <small>Status: <span class="badge bg-${getStatusBadgeColor(gift.status)}">${gift.status}</span></small>
+                    <button class="btn btn-sm btn-outline-primary mt-1" onclick="generateReceipt('gift', '${gift._id}')">
+                        <i class="fas fa-receipt me-1"></i>Receipt
+                    </button>
+                </div>
+            `;
+        });
+    } else {
+        activityHTML += `<p class="text-muted">No gift orders found</p>`;
+    }
+    
+    activityHTML += `
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = activityHTML;
+    
+    // Show the modal
+    const activityModal = new bootstrap.Modal(document.getElementById('userActivityModal'));
+    activityModal.show();
+}
+
+function getStatusBadgeColor(status) {
+    switch (status?.toLowerCase()) {
+        case 'completed':
+        case 'confirmed':
+        case 'paid':
+        case 'delivered':
+            return 'success';
+        case 'pending':
+        case 'processing':
+            return 'warning';
+        case 'cancelled':
+        case 'refunded':
+            return 'danger';
+        default:
+            return 'secondary';
+    }
+}
+
+// Update the recent activity display to include receipt buttons
+function updateRecentActivity(activities) {
+    const recentActivityList = document.getElementById('recentActivity');
+    if (!recentActivityList) return;
+
+    if (activities && activities.length > 0) {
+        recentActivityList.innerHTML = activities.map(activity => `
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1">${activity.title || activity.description || 'Activity'}</h6>
+                    <p class="mb-1 text-muted">${activity.description || activity.type || 'No description'}</p>
+                    <small class="text-muted">${new Date(activity.timestamp || activity.date || new Date()).toLocaleString()}</small>
+                </div>
+                <div>
+                    <span class="badge bg-primary me-2">R ${(activity.amount || 0).toFixed(2)}</span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="generateReceipt('${activity.type}', '${activity.id}')">
+                        <i class="fas fa-receipt"></i>
+                    </button>
+                </div>
+            </li>
+        `).join('');
+    } else {
+        recentActivityList.innerHTML = '<li class="list-group-item">No recent activity</li>';
+    }
+}
+
+// ===== RECEIPT & PDF INVOICE FUNCTIONS =====
+async function generateReceipt(type, id) {
+    try {
+        console.log(`📄 Generating receipt for ${type} with ID: ${id}`);
+        
+        const data = await apiCall(`/dashboard/receipt/${type}/${id}`);
+        
+        if (data.success && data.receipt) {
+            // Create PDF invoice
+            await createPDFInvoice(data.receipt, data.company);
+        } else {
+            throw new Error('Failed to generate receipt data');
+        }
+    } catch (error) {
+        console.error('Error generating receipt:', error);
+        showNotification('Failed to generate receipt: ' + error.message, 'error');
+    }
+}
+
+async function createPDFInvoice(receipt, company) {
+    try {
+        // Create a new window for the invoice
+        const invoiceWindow = window.open('', '_blank');
+        const invoiceDate = new Date().toLocaleDateString('en-ZA');
+        const invoiceTime = new Date().toLocaleTimeString('en-ZA');
+        
+        let itemsHTML = '';
+        if (receipt.type === 'order' && receipt.items) {
+            itemsHTML = receipt.items.map(item => `
+                <tr>
+                    <td>${item.product}</td>
+                    <td class="text-center">${item.quantity}</td>
+                    <td class="text-right">R ${item.price.toFixed(2)}</td>
+                    <td class="text-right">R ${item.subtotal.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        const invoiceHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Invoice - ${receipt.id}</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .invoice-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border: 2px solid #ddd;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #4e73df;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .company-info h1 {
+            color: #4e73df;
+            margin: 0;
+            font-size: 28px;
+        }
+        .company-info p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .invoice-details {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .customer-info, .invoice-info {
+            flex: 1;
+        }
+        .section-title {
+            background: #4e73df;
+            color: white;
+            padding: 10px;
+            margin: 20px 0 10px 0;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            border-bottom: 2px solid #ddd;
+            font-weight: bold;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        .text-right {
+            text-align: right;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .total-section {
+            margin-top: 30px;
+            text-align: right;
+        }
+        .total-amount {
+            font-size: 20px;
+            font-weight: bold;
+            color: #4e73df;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-confirmed { background: #d4edda; color: #155724; }
+        .status-paid { background: #d4edda; color: #155724; }
+        .status-pending { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <div class="invoice-container">
+        <div class="header">
+            <div class="company-info">
+                <h1>${company.name}</h1>
+                <p>${company.address}</p>
+                <p>Tel: ${company.phone} | Email: ${company.email}</p>
+                <p>${company.registration} | ${company.vatNumber}</p>
+            </div>
+        </div>
+
+        <div class="invoice-details">
+            <div class="customer-info">
+                <h3>Customer Details</h3>
+                <p><strong>Name:</strong> ${receipt.customer}</p>
+                <p><strong>Email:</strong> ${receipt.customerEmail}</p>
+                <p><strong>Phone:</strong> ${receipt.customerPhone || 'Not provided'}</p>
+            </div>
+            <div class="invoice-info">
+                <h3>Invoice Details</h3>
+                <p><strong>Invoice #:</strong> ${receipt.id}</p>
+                <p><strong>Date:</strong> ${invoiceDate}</p>
+                <p><strong>Time:</strong> ${invoiceTime}</p>
+                <p><strong>Type:</strong> ${receipt.type.charAt(0).toUpperCase() + receipt.type.slice(1)}</p>
+                <p><strong>Status:</strong> 
+                    <span class="status-badge status-${receipt.status}">${receipt.status}</span>
+                </p>
+            </div>
+        </div>
+
+        ${receipt.type === 'booking' ? `
+        <div class="section-title">Service Details</div>
+        <table>
+            <tr>
+                <th>Service</th>
+                <th>Staff</th>
+                <th>Duration</th>
+                <th>Appointment</th>
+                <th class="text-right">Amount</th>
+            </tr>
+            <tr>
+                <td>${receipt.service}</td>
+                <td>${receipt.staff}</td>
+                <td>${receipt.duration}</td>
+                <td>${new Date(receipt.bookingDate).toLocaleDateString()} at ${receipt.bookingTime}</td>
+                <td class="text-right">R ${receipt.amount.toFixed(2)}</td>
+            </tr>
+        </table>
+        ${receipt.specialRequests && receipt.specialRequests !== 'None' ? `
+        <div class="section-title">Special Requests</div>
+        <p>${receipt.specialRequests}</p>
+        ` : ''}
+        ` : ''}
+
+        ${receipt.type === 'order' ? `
+        <div class="section-title">Order Items</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th class="text-center">Qty</th>
+                    <th class="text-right">Unit Price</th>
+                    <th class="text-right">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${itemsHTML}
+            </tbody>
+        </table>
+        <div class="section-title">Order Information</div>
+        <p><strong>Processed By:</strong> ${receipt.processedBy}</p>
+        <p><strong>Shipping Address:</strong> ${receipt.shippingAddress}</p>
+        ` : ''}
+
+        ${receipt.type === 'gift' ? `
+        <div class="section-title">Gift Details</div>
+        <table>
+            <tr>
+                <th>Gift Package</th>
+                <th>Recipient</th>
+                <th>Delivery Date</th>
+                <th>Assigned Staff</th>
+                <th class="text-right">Amount</th>
+            </tr>
+            <tr>
+                <td>${receipt.giftPackage}</td>
+                <td>${receipt.recipient}<br><small>${receipt.recipientEmail}</small></td>
+                <td>${new Date(receipt.deliveryDate).toLocaleDateString()}</td>
+                <td>${receipt.assignedStaff}</td>
+                <td class="text-right">R ${receipt.amount.toFixed(2)}</td>
+            </tr>
+        </table>
+        ${receipt.message ? `
+        <div class="section-title">Personal Message</div>
+        <p><em>${receipt.message}</em></p>
+        ` : ''}
+        ` : ''}
+
+        <div class="total-section">
+            <div class="section-title">Total Amount</div>
+            <div class="total-amount">R ${(receipt.amount || receipt.total || 0).toFixed(2)}</div>
+        </div>
+
+        <div class="footer">
+            <p>Thank you for choosing ${company.name}!</p>
+            <p>This is an computer-generated invoice. No signature required.</p>
+            <p>For any inquiries, please contact ${company.email} or call ${company.phone}</p>
+            <p>Generated on ${invoiceDate} at ${invoiceTime}</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+        invoiceWindow.document.write(invoiceHTML);
+        invoiceWindow.document.close();
+        
+        // Wait for content to load then trigger print
+        setTimeout(() => {
+            invoiceWindow.print();
+            showNotification('Invoice generated successfully!', 'success');
+        }, 500);
+
+    } catch (error) {
+        console.error('Error creating PDF invoice:', error);
+        showNotification('Failed to create invoice: ' + error.message, 'error');
+    }
+}
+
+// Alternative: Download as PDF using html2pdf.js
+// Add this CDN to your index.html: <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+async function downloadPDFInvoice(receipt, company) {
+    try {
+        // Create invoice HTML (same as above)
+        const invoiceHTML = createInvoiceHTML(receipt, company);
+        
+        // Create a temporary div for the invoice
+        const element = document.createElement('div');
+        element.innerHTML = invoiceHTML;
+        document.body.appendChild(element);
+        
+        // Use html2pdf to generate PDF
+        const opt = {
+            margin: 10,
+            filename: `invoice-${receipt.id}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        
+        await html2pdf().set(opt).from(element).save();
+        
+        // Remove temporary element
+        document.body.removeChild(element);
+        
+        showNotification('PDF invoice downloaded successfully!', 'success');
+    } catch (error) {
+        console.error('Error downloading PDF:', error);
+        showNotification('Failed to download PDF invoice', 'error');
+    }
+}

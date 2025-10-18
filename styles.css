@@ -128,3 +128,120 @@ footer {
     border: 1px dashed var(--primary);
     background-color: rgba(138, 109, 59, 0.05);
 }
+
+/* Printable Receipt Styles */
+.receipt {
+    font-family: 'Courier New', monospace;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.receipt-header {
+    text-align: center;
+    border-bottom: 2px solid #000;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.receipt-header h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.receipt-header p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+.receipt-details {
+    margin-bottom: 20px;
+}
+
+.receipt-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed #ccc;
+}
+
+.receipt-total {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    font-size: 18px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 2px solid #000;
+}
+
+.receipt-footer {
+    text-align: center;
+    margin-top: 30px;
+    font-size: 12px;
+    color: #666;
+}
+
+/* Chart container improvements */
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+/* Dashboard card improvements */
+.dashboard-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.dashboard-card .stats-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+/* User activity styles */
+.activity-item {
+    padding: 10px;
+    border-left: 4px solid #007bff;
+    margin-bottom: 10px;
+    background: #f8f9fa;
+}
+
+.activity-item.booking {
+    border-left-color: #28a745;
+}
+
+.activity-item.order {
+    border-left-color: #007bff;
+}
+
+.activity-item.gift {
+    border-left-color: #6f42c1;
+}
+
+/* Print styles for receipts */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #receiptContent, #receiptContent * {
+        visibility: visible;
+    }
+    #receiptContent {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+    .btn-close, .modal-footer {
+        display: none !important;
+    }
+}

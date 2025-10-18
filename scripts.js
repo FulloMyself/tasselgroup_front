@@ -1151,23 +1151,32 @@ async function loadAdminDashboard() {
     }
 }
 
+// ===== STAFF DASHBOARD FUNCTIONS =====
 async function loadStaffDashboard() {
     try {
         const data = await apiCall('/dashboard/staff');
 
+        // Update basic stats
         document.getElementById('staffSales').textContent = data.stats?.totalSales || 0;
         document.getElementById('staffClients').textContent = data.stats?.totalClients || 0;
         document.getElementById('staffHours').textContent = data.stats?.totalHours || 0;
         document.getElementById('staffCommission').textContent = 'R ' + (data.stats?.totalCommission || 0).toFixed(2);
 
-        // Update appointments
+        // Update appointments with receipt buttons
         const appointmentsList = document.getElementById('staffAppointments');
         if (appointmentsList) {
             if (data.upcomingAppointments && data.upcomingAppointments.length > 0) {
                 appointmentsList.innerHTML = data.upcomingAppointments.map(apt => `
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                        ${apt.service?.name || 'Service'} - ${apt.user?.name || 'Customer'}
-                        <span class="badge bg-primary rounded-pill">${new Date(apt.date).toLocaleDateString()}, ${apt.time}</span>
+                        <div>
+                            <strong>${apt.service?.name || 'Service'}</strong><br>
+                            <small>${apt.user?.name || 'Customer'} | ${new Date(apt.date).toLocaleDateString()}, ${apt.time}</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="generateReceipt('booking', '${apt._id}')" title="Generate Receipt">
+                                <i class="fas fa-receipt"></i>
+                            </button>
+                        </div>
                     </li>
                 `).join('');
             } else {
@@ -1175,14 +1184,22 @@ async function loadStaffDashboard() {
             }
         }
 
-        // Update recent sales
+        // Update recent sales with receipt buttons
         const recentSalesList = document.getElementById('staffRecentSales');
         if (recentSalesList) {
             if (data.recentSales && data.recentSales.length > 0) {
                 recentSalesList.innerHTML = data.recentSales.map(sale => `
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                        ${sale.description || 'Sale'}
-                        <span class="badge bg-success rounded-pill">R ${(sale.amount || 0).toFixed(2)}</span>
+                        <div>
+                            <strong>${sale.description || 'Sale'}</strong><br>
+                            <small>${sale.customer || 'Customer'}</small>
+                        </div>
+                        <div>
+                            <span class="badge bg-success me-2">R ${(sale.amount || 0).toFixed(2)}</span>
+                            <button class="btn btn-sm btn-outline-primary" onclick="generateReceipt('${sale.type}', '${sale.id}')" title="Generate Receipt">
+                                <i class="fas fa-receipt"></i>
+                            </button>
+                        </div>
                     </li>
                 `).join('');
             } else {
@@ -1190,10 +1207,240 @@ async function loadStaffDashboard() {
             }
         }
 
+        // Load detailed activities table
+        await loadStaffActivities();
+
     } catch (error) {
         console.error('Failed to load staff dashboard:', error);
         showNotification('Failed to load staff dashboard', 'error');
     }
+}
+
+async function loadStaffActivities() {
+    try {
+        // Get detailed data for staff activities
+        const [bookings, orders, giftOrders] = await Promise.all([
+            apiCall('/bookings?staff=' + currentUser._id),
+            apiCall('/orders?processedBy=' + currentUser._id),
+            apiCall('/gift-orders?assignedStaff=' + currentUser._id)
+        ]);
+
+        const activitiesBody = document.getElementById('staffActivitiesBody');
+        if (!activitiesBody) return;
+
+        // Combine all activities
+        const allActivities = [
+            ...(bookings.bookings || bookings.data || bookings || []).map(b => ({ ...b, type: 'booking' })),
+            ...(orders.orders || orders.data || orders || []).map(o => ({ ...o, type: 'order' })),
+            ...(giftOrders.giftOrders || giftOrders.data || giftOrders || []).map(g => ({ ...g, type: 'gift' }))
+        ];
+
+        // Sort by date (newest first)
+        allActivities.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        if (allActivities.length > 0) {
+            activitiesBody.innerHTML = allActivities.slice(0, 10).map(activity => `
+                <tr>
+                    <td>${new Date(activity.createdAt).toLocaleDateString()}</td>
+                    <td>
+                        <span class="badge bg-${getActivityTypeColor(activity.type)}">
+                            ${activity.type.toUpperCase()}
+                        </span>
+                    </td>
+                    <td>${activity.user?.name || activity.recipientName || 'Customer'}</td>
+                    <td>
+                        ${activity.type === 'booking' ? activity.service?.name : 
+                          activity.type === 'order' ? `${activity.items?.length || 0} items` :
+                          activity.giftPackage?.name || 'Gift Package'}
+                    </td>
+                    <td>R ${(
+                        activity.type === 'booking' ? activity.service?.price :
+                        activity.type === 'order' ? (activity.finalTotal || activity.total) :
+                        activity.price || activity.total || 0
+                    ).toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="generateReceipt('${activity.type}', '${activity._id}')">
+                            <i class="fas fa-receipt me-1"></i>Receipt
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            activitiesBody.innerHTML = '<tr><td colspan="6" class="text-center">No activities found</td></tr>';
+        }
+
+    } catch (error) {
+        console.error('Error loading staff activities:', error);
+    }
+}
+
+function getActivityTypeColor(type) {
+    switch (type) {
+        case 'booking': return 'primary';
+        case 'order': return 'success';
+        case 'gift': return 'info';
+        default: return 'secondary';
+    }
+}
+
+// ===== STAFF RECEIPT MANAGEMENT =====
+function showUserSearchModal() {
+    const modal = new bootstrap.Modal(document.getElementById('userSearchModal'));
+    modal.show();
+}
+
+async function searchUsers() {
+    const searchInput = document.getElementById('userSearchInput').value.trim();
+    const resultsDiv = document.getElementById('userSearchResults');
+
+    if (!searchInput) {
+        resultsDiv.innerHTML = '<div class="alert alert-warning">Please enter a search term</div>';
+        return;
+    }
+
+    try {
+        const data = await apiCall(`/users/search?q=${encodeURIComponent(searchInput)}`);
+        
+        if (data.users && data.users.length > 0) {
+            resultsDiv.innerHTML = data.users.map(user => `
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <h6 class="card-title">${user.name}</h6>
+                        <p class="card-text mb-1">Email: ${user.email}</p>
+                        <p class="card-text mb-1">Phone: ${user.phone || 'Not provided'}</p>
+                        <p class="card-text mb-2">Role: <span class="badge bg-${user.role === 'admin' ? 'danger' : user.role === 'staff' ? 'warning' : 'primary'}">${user.role}</span></p>
+                        <button class="btn btn-sm btn-primary" onclick="viewUserActivity('${user._id}', '${user.name}')">
+                            <i class="fas fa-chart-line me-1"></i>View Activity
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            resultsDiv.innerHTML = '<div class="alert alert-info">No users found</div>';
+        }
+    } catch (error) {
+        console.error('Error searching users:', error);
+        resultsDiv.innerHTML = '<div class="alert alert-danger">Error searching users</div>';
+    }
+}
+
+function showMyReceipts() {
+    loadStaffReceipts();
+    const modal = new bootstrap.Modal(document.getElementById('staffReceiptsModal'));
+    modal.show();
+}
+
+async function loadStaffReceipts() {
+    try {
+        // Get recent activities for receipts
+        const [bookings, orders, giftOrders] = await Promise.all([
+            apiCall('/bookings?staff=' + currentUser._id),
+            apiCall('/orders?processedBy=' + currentUser._id),
+            apiCall('/gift-orders?assignedStaff=' + currentUser._id)
+        ]);
+
+        const receiptsBody = document.getElementById('staffReceiptsBody');
+        if (!receiptsBody) return;
+
+        // Combine and sort activities
+        const allReceipts = [
+            ...(bookings.bookings || bookings.data || bookings || []).map(b => ({ ...b, type: 'booking' })),
+            ...(orders.orders || orders.data || orders || []).map(o => ({ ...o, type: 'order' })),
+            ...(giftOrders.giftOrders || giftOrders.data || giftOrders || []).map(g => ({ ...g, type: 'gift' }))
+        ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 20);
+
+        if (allReceipts.length > 0) {
+            receiptsBody.innerHTML = allReceipts.map(receipt => `
+                <tr>
+                    <td>${new Date(receipt.createdAt).toLocaleDateString()}</td>
+                    <td>
+                        <span class="badge bg-${getActivityTypeColor(receipt.type)}">
+                            ${receipt.type.toUpperCase()}
+                        </span>
+                    </td>
+                    <td>${receipt.user?.name || receipt.recipientName || 'Customer'}</td>
+                    <td>
+                        ${receipt.type === 'booking' ? receipt.service?.name : 
+                          receipt.type === 'order' ? `${receipt.items?.length || 0} products` :
+                          receipt.giftPackage?.name || 'Gift Package'}
+                    </td>
+                    <td>R ${(
+                        receipt.type === 'booking' ? receipt.service?.price :
+                        receipt.type === 'order' ? (receipt.finalTotal || receipt.total) :
+                        receipt.price || receipt.total || 0
+                    ).toFixed(2)}</td>
+                    <td>
+                        <span class="badge bg-${getStatusBadgeColor(receipt.status)}">
+                            ${receipt.status}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="generateReceipt('${receipt.type}', '${receipt._id}')">
+                            <i class="fas fa-print me-1"></i>Print
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            receiptsBody.innerHTML = '<tr><td colspan="7" class="text-center">No receipts found</td></tr>';
+        }
+
+    } catch (error) {
+        console.error('Error loading staff receipts:', error);
+        receiptsBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading receipts</td></tr>';
+    }
+}
+
+// ===== PRINT FUNCTIONS FOR STAFF =====
+function printStaffAppointments() {
+    const appointments = document.getElementById('staffAppointments').innerHTML;
+    printContent('My Upcoming Appointments', appointments);
+}
+
+function printStaffSales() {
+    const sales = document.getElementById('staffRecentSales').innerHTML;
+    printContent('My Recent Sales', sales);
+}
+
+function printStaffActivities() {
+    const activities = document.getElementById('staffActivitiesTable').outerHTML;
+    printContent('My Activities Report', activities);
+}
+
+function printAllStaffReceipts() {
+    const receipts = document.getElementById('staffReceiptsBody').parentNode.outerHTML;
+    printContent('My Receipts Summary', receipts);
+}
+
+function printContent(title, content) {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>${title}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
+                    .badge { padding: 5px 10px; border-radius: 10px; color: white; }
+                    .bg-primary { background: #007bff; }
+                    .bg-success { background: #28a745; }
+                    .bg-warning { background: #ffc107; color: black; }
+                    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                    th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+                    th { background: #f8f9fa; }
+                </style>
+            </head>
+            <body>
+                <h1>${title}</h1>
+                <p><strong>Staff:</strong> ${currentUser.name}</p>
+                <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+                <hr>
+                ${content}
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
 }
 
 // ===== CHART FUNCTIONS =====

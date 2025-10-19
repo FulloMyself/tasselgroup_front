@@ -1,4 +1,4 @@
-/* Move all your CSS from the <style> tag in your HTML to this file */
+/* Tassel Group Styles - Clean Version */
 :root {
     --primary: #8a6d3b;
     --secondary: #f5f5f5;
@@ -124,9 +124,25 @@ footer {
     margin-bottom: 20px;
 }
 
+.staff-controls {
+    background-color: #e9ecef;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.customer-controls {
+    background-color: #e3f2fd;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
 .voucher-card {
     border: 1px dashed var(--primary);
     background-color: rgba(138, 109, 59, 0.05);
+    padding: 15px;
+    border-radius: 8px;
 }
 
 /* Printable Receipt Styles */
@@ -184,35 +200,13 @@ footer {
     color: #666;
 }
 
-/* Chart container improvements */
-.chart-container {
-    position: relative;
-    height: 300px;
-    width: 100%;
-}
-
-/* Dashboard card improvements */
-.dashboard-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
-}
-
-.dashboard-card .stats-number {
-    font-size: 2.5rem;
-    font-weight: bold;
-    margin: 10px 0;
-}
-
 /* User activity styles */
 .activity-item {
     padding: 10px;
     border-left: 4px solid #007bff;
     margin-bottom: 10px;
     background: #f8f9fa;
+    border-radius: 4px;
 }
 
 .activity-item.booking {
@@ -225,6 +219,10 @@ footer {
 
 .activity-item.gift {
     border-left-color: #6f42c1;
+}
+
+.customer-section {
+    margin-top: 20px;
 }
 
 /* Print styles for receipts */
@@ -244,4 +242,73 @@ footer {
     .btn-close, .modal-footer {
         display: none !important;
     }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .hero-section {
+        padding: 80px 0;
+    }
+    
+    .dashboard-card {
+        margin-bottom: 15px;
+    }
+    
+    .stats-number {
+        font-size: 1.5rem;
+    }
+    
+    .chart-container {
+        height: 250px;
+    }
+}
+
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Success states */
+.success-badge {
+    background-color: #28a745;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+}
+
+/* Error states */
+.error-badge {
+    background-color: #dc3545;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+}
+
+/* Table improvements */
+.table-responsive {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.table th {
+    background-color: var(--primary);
+    color: white;
+    border: none;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+/* Modal improvements */
+.modal-header {
+    background-color: var(--primary);
+    color: white;
+}
+
+.modal-header .btn-close {
+    filter: invert(1);
 }

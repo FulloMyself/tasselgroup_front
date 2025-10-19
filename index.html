@@ -671,6 +671,11 @@
                         </div>
                     </div>
 
+                    <!-- Add this to your admin dashboard, after the admin controls -->
+                    <div id="bookingsSummary" class="mb-4">
+                        <!-- Unassigned bookings alert will appear here -->
+                    </div>
+
                     <div class="row">
                         <div class="col-md-3">
                             <div class="dashboard-card text-center">
@@ -762,6 +767,7 @@
                             </div>
                         </div>
                     </div>
+
 
                     <div class="row mt-4">
                         <div class="col-md-12">
@@ -927,6 +933,48 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <button type="button" class="btn btn-primary" onclick="printReceipt()">
                         <i class="fas fa-print me-2"></i>Print Receipt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Staff Assignment Modal -->
+    <div class="modal fade" id="staffAssignmentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="staffAssignmentModalTitle">Assign Staff to Booking</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="staffAssignmentModalBody">
+                    <div class="mb-3">
+                        <label for="bookingDetails" class="form-label">Booking Details</label>
+                        <div id="bookingDetails" class="p-3 bg-light rounded">
+                            <strong>Customer:</strong> <span id="assignmentCustomerName">-</span><br>
+                            <strong>Service:</strong> <span id="assignmentServiceName">-</span><br>
+                            <strong>Date:</strong> <span id="assignmentBookingDate">-</span><br>
+                            <strong>Time:</strong> <span id="assignmentBookingTime">-</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="staffAssignmentDropdown" class="form-label">Select Staff Member</label>
+                        <select class="form-control" id="staffAssignmentDropdown">
+                            <option value="">Select staff member...</option>
+                            <!-- Staff options will be populated dynamically -->
+                        </select>
+                    </div>
+                    <div id="currentAssignment" class="mb-3" style="display: none;">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Currently assigned to: <span id="currentStaffName">-</span>
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="assignStaffToBooking()">
+                        <i class="fas fa-user-plus me-1"></i>Assign Staff
                     </button>
                 </div>
             </div>

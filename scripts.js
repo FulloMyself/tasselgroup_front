@@ -965,7 +965,7 @@ function updateAdminBookingsTable(bookings) {
     if (!container) return;
     
     if (!bookings || bookings.length === 0) {
-        container.innerHTML = '<tr><td colspan="8" class="text-center">No bookings found</td></tr>';
+        container.innerHTML = '<tr><td colspan="9" class="text-center">No bookings found</td></tr>';
         return;
     }
     
@@ -975,7 +975,15 @@ function updateAdminBookingsTable(bookings) {
             <td>${booking._id.slice(-8)}</td>
             <td>${booking.user?.name || 'Customer'}</td>
             <td>${booking.service?.name || 'Service'}</td>
-            <td>${booking.staff?.name || 'Not assigned'}</td>
+            <td>
+                <span class="staff-assignment ${booking.staff ? 'assigned' : 'unassigned'}" 
+                      data-booking-id="${booking._id}">
+                    ${booking.staff ? 
+                        `<i class="fas fa-user-check me-1"></i>${booking.staff.name}` : 
+                        `<i class="fas fa-user-clock me-1"></i>Not assigned`
+                    }
+                </span>
+            </td>
             <td>${new Date(booking.date).toLocaleDateString()} at ${booking.time}</td>
             <td>
                 <span class="badge bg-${getStatusBadgeColor(booking.status)}">
@@ -983,17 +991,63 @@ function updateAdminBookingsTable(bookings) {
                 </span>
             </td>
             <td>
-                <button class="btn btn-sm btn-outline-primary me-1" 
-                        onclick="generateReceipt('booking', '${booking._id}')">
-                    <i class="fas fa-receipt"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-warning" 
-                        onclick="showStatusModal('booking', '${booking._id}', '${booking.status}')">
-                    <i class="fas fa-edit"></i>
-                </button>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary" 
+                            onclick="generateReceipt('booking', '${booking._id}')"
+                            title="View Receipt">
+                        <i class="fas fa-receipt"></i>
+                    </button>
+                    <button class="btn btn-outline-warning" 
+                            onclick="showStatusModal('booking', '${booking._id}', '${booking.status}')"
+                            title="Update Status">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-outline-info" 
+                            onclick="showStaffAssignmentModal(
+                                '${booking._id}', 
+                                '${booking.staff?._id || ''}', 
+                                '${booking.user?.name || 'Customer'}', 
+                                '${booking.service?.name || 'Service'}',
+                                '${new Date(booking.date).toLocaleDateString()}',
+                                '${booking.time}'
+                            )"
+                            title="Assign Staff">
+                        <i class="fas fa-user-plus"></i>
+                    </button>
+                </div>
             </td>
         </tr>
     `).join('');
+    
+    // Show unassigned bookings summary
+    showUnassignedBookingsSummary(bookings);
+}
+
+// Show summary of unassigned bookings
+function showUnassignedBookingsSummary(bookings) {
+    const unassignedCount = bookings.filter(booking => !booking.staff).length;
+    const summaryElement = document.getElementById('bookingsSummary');
+    
+    if (summaryElement) {
+        if (unassignedCount > 0) {
+            summaryElement.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>${unassignedCount} booking${unassignedCount > 1 ? 's' : ''} need staff assignment</strong>
+                    <button class="btn btn-sm btn-outline-warning ms-2" onclick="showAllUnassignedBookings()">
+                        <i class="fas fa-list me-1"></i>View All
+                    </button>
+                </div>
+            `;
+        } else {
+            summaryElement.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    All bookings have staff assigned!
+                </div>
+            `;
+        }
+    }
 }
 
 function updateAdminGiftsTable(gifts) {
@@ -2403,6 +2457,282 @@ function setMinimumDates() {
 
     if (bookingDate) bookingDate.min = today;
     if (deliveryDate) deliveryDate.min = today;
+}
+
+// ===== STAFF ASSIGNMENT FUNCTIONS =====
+let currentAssignmentBookingId = null;
+
+function showStaffAssignmentModal(bookingId, currentStaffId, customerName, serviceName, bookingDate, bookingTime) {
+    currentAssignmentBookingId = bookingId;
+    
+    const modalTitle = document.getElementById('staffAssignmentModalTitle');
+    const customerNameEl = document.getElementById('assignmentCustomerName');
+    const serviceNameEl = document.getElementById('assignmentServiceName');
+    const bookingDateEl = document.getElementById('assignmentBookingDate');
+    const bookingTimeEl = document.getElementById('assignmentBookingTime');
+    const currentStaffSection = document.getElementById('currentAssignment');
+    const currentStaffNameEl = document.getElementById('currentStaffName');
+    
+    // Update modal content
+    modalTitle.textContent = `Assign Staff to Booking`;
+    customerNameEl.textContent = customerName;
+    serviceNameEl.textContent = serviceName;
+    bookingDateEl.textContent = bookingDate;
+    bookingTimeEl.textContent = bookingTime;
+    
+    // Show/hide current assignment
+    if (currentStaffId) {
+        // We'll update this after populating the dropdown
+        currentStaffSection.style.display = 'block';
+    } else {
+        currentStaffSection.style.display = 'none';
+    }
+    
+    // Populate staff dropdown
+    populateStaffAssignmentDropdown(currentStaffId);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('staffAssignmentModal'));
+    modal.show();
+}
+
+function populateStaffAssignmentDropdown(currentStaffId = '') {
+    const dropdown = document.getElementById('staffAssignmentDropdown');
+    const currentStaffSection = document.getElementById('currentAssignment');
+    const currentStaffNameEl = document.getElementById('currentStaffName');
+    
+    if (!dropdown) return;
+
+    // Clear existing options except the first one
+    while (dropdown.options.length > 1) {
+        dropdown.remove(1);
+    }
+
+    // Load staff members and populate dropdown
+    loadStaffMembers().then(staffMembers => {
+        if (staffMembers && staffMembers.length > 0) {
+            staffMembers.forEach(staff => {
+                const option = document.createElement('option');
+                option.value = staff._id;
+                option.textContent = `${staff.name} (${staff.role})`;
+                dropdown.appendChild(option);
+                
+                // If this is the currently assigned staff, update the display
+                if (staff._id === currentStaffId) {
+                    currentStaffNameEl.textContent = `${staff.name} (${staff.role})`;
+                    currentStaffSection.style.display = 'block';
+                }
+            });
+            
+            // Set current selection
+            dropdown.value = currentStaffId;
+            
+            console.log(`✅ Loaded ${staffMembers.length} staff members for assignment`);
+        } else {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No staff members available';
+            option.disabled = true;
+            dropdown.appendChild(option);
+        }
+    }).catch(error => {
+        console.error('Failed to populate staff assignment dropdown:', error);
+        showNotification('Failed to load staff members', 'error');
+    });
+}
+
+async function assignStaffToBooking() {
+    const staffId = document.getElementById('staffAssignmentDropdown').value;
+    const staffName = document.getElementById('staffAssignmentDropdown').options[document.getElementById('staffAssignmentDropdown').selectedIndex].text;
+    
+    if (!staffId) {
+        showNotification('Please select a staff member', 'warning');
+        return;
+    }
+
+    if (!currentAssignmentBookingId) {
+        showNotification('No booking selected', 'error');
+        return;
+    }
+
+    try {
+        console.log(`🔄 Assigning staff ${staffId} to booking ${currentAssignmentBookingId}`);
+        
+        const result = await apiCall(`/bookings/${currentAssignmentBookingId}/assign-staff`, {
+            method: 'PATCH',
+            body: { staffId }
+        });
+
+        if (result.success) {
+            showNotification(result.message, 'success');
+            
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('staffAssignmentModal')).hide();
+            
+            // Refresh the admin dashboard to show updated assignment
+            loadAdminManagementTables();
+            if (currentUser.role === 'admin') {
+                loadDashboard(); // Refresh admin dashboard stats
+            }
+        }
+
+    } catch (error) {
+        console.error('❌ Staff assignment failed:', error);
+        showNotification('Failed to assign staff: ' + error.message, 'error');
+    }
+}
+
+// View all unassigned bookings
+async function showAllUnassignedBookings() {
+    try {
+        const data = await apiCall('/bookings/unassigned');
+        
+        if (data.success && data.bookings.length > 0) {
+            showUnassignedBookingsModal(data.bookings);
+        } else {
+            showNotification('No unassigned bookings found', 'info');
+        }
+    } catch (error) {
+        console.error('Error fetching unassigned bookings:', error);
+        showNotification('Failed to load unassigned bookings', 'error');
+    }
+}
+
+// Show modal with all unassigned bookings
+function showUnassignedBookingsModal(bookings) {
+    const modalTitle = document.getElementById('adminModalTitle');
+    const modalBody = document.getElementById('adminModalBody');
+    
+    modalTitle.textContent = `Unassigned Bookings (${bookings.length})`;
+    
+    modalBody.innerHTML = `
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Service</th>
+                        <th>Date & Time</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${bookings.map(booking => `
+                        <tr>
+                            <td>${booking.user?.name || 'Customer'}</td>
+                            <td>${booking.service?.name || 'Service'}</td>
+                            <td>${new Date(booking.date).toLocaleDateString()} at ${booking.time}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-info" 
+                                        onclick="
+                                            bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide();
+                                            showStaffAssignmentModal(
+                                                '${booking._id}', 
+                                                '', 
+                                                '${booking.user?.name || 'Customer'}', 
+                                                '${booking.service?.name || 'Service'}',
+                                                '${new Date(booking.date).toLocaleDateString()}',
+                                                '${booking.time}'
+                                            )
+                                        ">
+                                    <i class="fas fa-user-plus me-1"></i>Assign
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        ${bookings.length > 5 ? `
+            <div class="mt-3">
+                <button class="btn btn-primary w-100" onclick="assignAllToSameStaff()">
+                    <i class="fas fa-users me-1"></i>Assign All to Same Staff Member
+                </button>
+            </div>
+        ` : ''}
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('adminModal'));
+    modal.show();
+}
+
+// Bulk assign all unassigned bookings to same staff
+async function assignAllToSameStaff() {
+    try {
+        const data = await apiCall('/bookings/unassigned');
+        
+        if (!data.success || data.bookings.length === 0) {
+            showNotification('No unassigned bookings found', 'info');
+            return;
+        }
+        
+        const bookingIds = data.bookings.map(booking => booking._id);
+        
+        // Show staff selection for bulk assignment
+        const modalTitle = document.getElementById('adminModalTitle');
+        const modalBody = document.getElementById('adminModalBody');
+        
+        modalTitle.textContent = 'Assign All to Staff Member';
+        modalBody.innerHTML = `
+            <div class="mb-3">
+                <label class="form-label">Select Staff Member for ${bookingIds.length} Bookings</label>
+                <select class="form-control" id="bulkStaffAssignment">
+                    <option value="">Select staff member...</option>
+                </select>
+            </div>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                This will assign ${bookingIds.length} unassigned bookings to the selected staff member.
+            </div>
+            <button class="btn btn-primary w-100" onclick="confirmBulkAssignment()">
+                <i class="fas fa-users me-1"></i>Assign All Bookings
+            </button>
+        `;
+        
+        // Populate staff dropdown
+        const dropdown = document.getElementById('bulkStaffAssignment');
+        loadStaffMembers().then(staffMembers => {
+            staffMembers.forEach(staff => {
+                const option = document.createElement('option');
+                option.value = staff._id;
+                option.textContent = `${staff.name} (${staff.role})`;
+                dropdown.appendChild(option);
+            });
+        });
+        
+    } catch (error) {
+        console.error('Error preparing bulk assignment:', error);
+        showNotification('Failed to prepare bulk assignment', 'error');
+    }
+}
+
+async function confirmBulkAssignment() {
+    const staffId = document.getElementById('bulkStaffAssignment').value;
+    
+    if (!staffId) {
+        showNotification('Please select a staff member', 'warning');
+        return;
+    }
+
+    try {
+        const unassignedData = await apiCall('/bookings/unassigned');
+        const bookingIds = unassignedData.bookings.map(booking => booking._id);
+        
+        const result = await apiCall('/bookings/bulk/assign-staff', {
+            method: 'PATCH',
+            body: { bookingIds, staffId }
+        });
+
+        if (result.success) {
+            showNotification(result.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide();
+            loadAdminManagementTables();
+            loadDashboard();
+        }
+    } catch (error) {
+        console.error('Bulk assignment failed:', error);
+        showNotification('Failed to assign bookings: ' + error.message, 'error');
+    }
 }
 
 function updateRecentActivity(activities) {

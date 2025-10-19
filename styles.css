@@ -312,3 +312,54 @@ footer {
 .modal-header .btn-close {
     filter: invert(1);
 }
+
+/* Staff assignment styling */
+.staff-assignment {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.staff-assignment.assigned {
+    background-color: #d1edff;
+    color: #0066cc;
+    border: 1px solid #b3d9ff;
+}
+
+.staff-assignment.unassigned {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+/* Staff assignment modal styling */
+#bookingDetails {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-left: 4px solid #007bff;
+    font-size: 0.9rem;
+}
+
+/* Button hover effects */
+.btn-outline-info:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+/* Table improvements */
+.table-responsive {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Badge improvements */
+.badge {
+    font-size: 0.75rem;
+}
+
+/* Alert improvements */
+.alert {
+    border: none;
+    border-radius: 8px;
+}

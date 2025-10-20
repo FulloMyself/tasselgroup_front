@@ -401,59 +401,140 @@ function removeFromCart(index) {
     }
 }
 
-async function checkout() {
-    if (cart.length === 0) {
-        showNotification('Your cart is empty', 'warning');
-        return;
-    }
+async function checkout(paymentMethod = 'manual') {
+  if (cart.length === 0) {
+    showNotification('Your cart is empty', 'warning');
+    return;
+  }
 
-    if (!currentUser) {
-        showNotification('Please log in to checkout', 'warning');
-        showSection('login');
-        return;
-    }
+  if (!currentUser) {
+    showNotification('Please log in to checkout', 'warning');
+    showSection('login');
+    return;
+  }
 
-    try {
-        const cartStaffDropdown = document.getElementById('cartStaff');
-        const staffId = cartStaffDropdown ? cartStaffDropdown.value : null;
+  try {
+    const cartStaffDropdown = document.getElementById('cartStaff');
+    const staffId = cartStaffDropdown ? cartStaffDropdown.value : null;
 
-        const orderData = {
-            items: cart.map(item => ({
-                product: item.productId,
-                quantity: item.quantity,
-                price: item.price
-            })),
-            totalAmount: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-            shippingAddress: currentUser.address,
-            paymentMethod: 'card',
-            status: 'paid',
-            processedBy: staffId || null
-        };
+    const orderData = {
+      items: cart.map(item => ({
+        productId: item.productId,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price
+      })),
+      totalAmount: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+      type: 'order',
+      staffId: staffId
+    };
 
-        console.log('🛒 Processing order with data:', orderData);
-        const result = await apiCall('/orders', {
-            method: 'POST',
-            body: orderData
-        });
+    console.log('🛒 Checkout data:', orderData);
 
-        // Clear cart and reset UI
+    if (paymentMethod === 'online') {
+      // Show loading
+      showNotification('Redirecting to secure payment...', 'info');
+      
+      // Initiate Payfast payment
+      const paymentResponse = await apiCall('/payment/initiate', {
+        method: 'POST',
+        body: orderData
+      });
+
+      if (paymentResponse.success) {
+        console.log('🔗 Redirecting to Payfast...');
+        redirectToPayfast(paymentResponse.payfastUrl, paymentResponse.data);
+      } else {
+        throw new Error(paymentResponse.message || 'Failed to initiate payment');
+      }
+    } else {
+      // Manual order (email only)
+      const manualResponse = await apiCall('/payment/manual-order', {
+        method: 'POST',
+        body: orderData
+      });
+
+      if (manualResponse.success) {
+        // Clear cart and show success message
         cart = [];
         updateCartDisplay();
         document.getElementById('cartSection').style.display = 'none';
-
-        if (cartStaffDropdown) {
-            cartStaffDropdown.value = '';
-        }
-
-        showNotification('Order placed successfully! Thank you for your purchase.', 'success');
-
-        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) {
-            loadDashboard();
-        }
-
-    } catch (error) {
-        showNotification('Failed to place order: ' + error.message, 'error');
+        
+        showNotification('Order placed successfully! Confirmation email sent.', 'success');
+        
+        // Close payment modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
+        if (modal) modal.hide();
+      }
     }
+
+  } catch (error) {
+    console.error('Checkout error:', error);
+    showNotification('Failed to process order: ' + error.message, 'error');
+  }
+}
+
+// Redirect to Payfast with proper form submission
+function redirectToPayfast(payfastUrl, data) {
+  // Create a form
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = payfastUrl;
+  form.style.display = 'none';
+
+  // Add all data as hidden inputs
+  Object.keys(data).forEach(key => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = key;
+    input.value = data[key];
+    form.appendChild(input);
+  });
+
+  // Add form to page and submit
+  document.body.appendChild(form);
+  console.log('🔄 Submitting to Payfast...', data);
+  form.submit();
+}
+
+// Add payment method selection to your checkout
+function showPaymentOptions() {
+  const paymentHTML = `
+    <div class="modal fade" id="paymentModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Select Payment Method</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="d-grid gap-2">
+              <button class="btn btn-primary" onclick="checkout('online')">
+                <i class="fas fa-credit-card me-2"></i>Pay Online with Payfast
+              </button>
+              <button class="btn btn-outline-primary" onclick="checkout('manual')">
+                <i class="fas fa-envelope me-2"></i>Email Order (Pay Later)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Add modal to DOM if not exists
+  if (!document.getElementById('paymentModal')) {
+    document.body.insertAdjacentHTML('beforeend', paymentHTML);
+  }
+
+  const modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+  modal.show();
+}
+
+// Update your checkout button to show payment options
+// Replace your current checkout button with:
+function initCheckout() {
+  showPaymentOptions();
 }
 
 // ===== SERVICES & BOOKINGS =====
@@ -1359,6 +1440,29 @@ async function handleVoucherSubmit(event) {
         showNotification('Failed to create voucher: ' + error.message, 'error');
     }
 }
+
+// Add to your scripts.js to handle payment return
+function handlePaymentReturn() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const reference = urlParams.get('reference');
+  const status = window.location.pathname;
+
+  if (status.includes('success') && reference) {
+    showNotification(`Payment successful! Order reference: ${reference}`, 'success');
+    // Clear cart and update UI
+    cart = [];
+    updateCartDisplay();
+  } else if (status.includes('cancelled')) {
+    showNotification('Payment was cancelled', 'warning');
+  } else if (status.includes('error')) {
+    showNotification('Payment failed. Please try again.', 'error');
+  }
+}
+
+// Call this on page load
+document.addEventListener('DOMContentLoaded', function() {
+  handlePaymentReturn();
+});
 
 function populateVoucherStaffDropdown() {
     const staffDropdown = document.getElementById('voucherAssignedTo');

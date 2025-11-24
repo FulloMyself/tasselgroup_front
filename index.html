@@ -1,0 +1,1871 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tassel Group - Premium Beauty & Wellness Spa Management</title>
+
+    <!-- External CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/ico" href="favicon.ico">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Preload critical CSS to prevent FOUC -->
+    <style>
+        .content-section {
+            display: none;
+        }
+
+        #home {
+            display: block;
+        }
+
+        .global-loading {
+            display: flex;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Global Loading Overlay -->
+    <div id="globalLoading" class="global-loading">
+        <div class="loading-overlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading Tassel Group...</div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="#" onclick="showSection('home')">
+                <i class="fas fa-spa me-2"></i>Tassel Group
+            </a>
+            <div class="navbar-text d-none d-md-block">
+                <small class="text-primary"><i class="fas fa-award me-1"></i>Premium Beauty & Wellness Since
+                    2010</small>
+            </div>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('home')">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('shop')">Premium Shop</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('bookings')">Luxury Bookings</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('gifts')">Signature Gifts</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav" id="authNav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('login')">
+                            <i class="fas fa-sign-in-alt me-1"></i>Member Login
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Trust Bar -->
+    <div class="trust-bar bg-primary text-white py-2">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-12 text-center">
+                    <small>
+                        <i class="fas fa-shield-alt me-1"></i>Certified Professionals |
+                        <i class="fas fa-gem me-1"></i>Premium Products |
+                        <i class="fas fa-star me-1"></i>5-Star Rated |
+                        <i class="fas fa-clock me-1"></i>10+ Years Excellence
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Sections -->
+    <div class="container-fluid p-0">
+        <!-- Home Section -->
+        <section id="home" class="content-section active-section">
+            <!-- Home section content remains exactly the same as before -->
+            <div class="hero-section">
+                <div class="container">
+                    <div class="premium-badge mb-3">
+                        <span class="badge bg-warning text-dark px-3 py-2">
+                            <i class="fas fa-crown me-2"></i>Gauteng's Premier Beauty Destination
+                        </span>
+                    </div>
+                    <h1 class="display-4">Experience Luxury Wellness at Tassel Group</h1>
+                    <p class="lead">Where premium beauty meets exceptional service. Join 10,000+ satisfied clients in
+                        our luxury wellness journey.</p>
+                    <div class="trust-indicators mb-4">
+                        <div class="d-flex justify-content-center flex-wrap">
+                            <div class="trust-item mx-3 my-2">
+                                <i class="fas fa-user-check me-1 text-success"></i>15,000+ Happy Clients
+                            </div>
+                            <div class="trust-item mx-3 my-2">
+                                <i class="fas fa-award me-1 text-warning"></i>Industry Certified
+                            </div>
+                            <div class="trust-item mx-3 my-2">
+                                <i class="fas fa-star me-1 text-info"></i>4.9/5 Rating
+                            </div>
+                        </div>
+                    </div>
+                    <a href="#" class="btn btn-primary btn-lg mt-3" onclick="showSection('bookings')">
+                        <i class="fas fa-calendar-plus me-2"></i>Book Luxury Experience
+                    </a>
+                </div>
+            </div>
+
+            <!-- Social Proof Section -->
+            <div class="bg-light py-5">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-md-3 col-6 text-center">
+                            <h3 class="text-primary fw-bold">15K+</h3>
+                            <p class="text-muted">Satisfied Clients</p>
+                        </div>
+                        <div class="col-md-3 col-6 text-center">
+                            <h3 class="text-primary fw-bold">10+</h3>
+                            <p class="text-muted">Years Excellence</p>
+                        </div>
+                        <div class="col-md-3 col-6 text-center">
+                            <h3 class="text-primary fw-bold">4.9</h3>
+                            <p class="text-muted">Average Rating</p>
+                        </div>
+                        <div class="col-md-3 col-6 text-center">
+                            <h3 class="text-primary fw-bold">50+</h3>
+                            <p class="text-muted">Expert Staff</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="container my-5">
+                <div class="section-header mb-5">
+                    <h2>Why Choose Tassel Group?</h2>
+                    <p>Experience the difference of premium beauty and wellness services</p>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 text-center mb-4">
+                        <div class="premium-feature p-4 h-100">
+                            <i class="fas fa-gift fa-3x text-primary mb-3"></i>
+                            <h4>Signature Gift Services</h4>
+                            <p>Curated luxury gift packages with premium wrapping and personalized touches.</p>
+                            <div class="feature-badge">
+                                <span class="badge bg-success">Most Popular</span>
+                            </div>
+                            <a href="#" class="btn btn-outline-primary mt-3" onclick="showSection('gifts')">Explore
+                                Gifts</a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-center mb-4">
+                        <div class="premium-feature p-4 h-100">
+                            <i class="fas fa-calendar-alt fa-3x text-primary mb-3"></i>
+                            <h4>Luxury Bookings</h4>
+                            <p>Premium appointments with certified experts in our state-of-the-art facilities.</p>
+                            <div class="feature-badge">
+                                <span class="badge bg-info">Expert Staff</span>
+                            </div>
+                            <a href="#" class="btn btn-outline-primary mt-3" onclick="showSection('bookings')">Book
+                                Now</a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-center mb-4">
+                        <div class="premium-feature p-4 h-100">
+                            <i class="fas fa-shopping-bag fa-3x text-primary mb-3"></i>
+                            <h4>Premium Products</h4>
+                            <p>Curated collection of luxury beauty and wellness products from top brands.</p>
+                            <div class="feature-badge">
+                                <span class="badge bg-warning text-dark">Premium Brands</span>
+                            </div>
+                            <a href="#" class="btn btn-outline-primary mt-3" onclick="showSection('shop')">Shop
+                                Luxury</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Testimonials Section -->
+                <div class="row mt-5">
+                    <div class="col-12">
+                        <div class="section-header">
+                            <h2>Client Testimonials</h2>
+                            <p>What our luxury clients say about us</p>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-4">
+                                <div class="testimonial-card card h-100">
+                                    <div class="card-body">
+                                        <div class="rating mb-3">
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star text-warning"></i>
+                                        </div>
+                                        <p class="fst-italic">"The premium experience at Tassel Group is unmatched.
+                                            Their attention to detail and luxury products make every visit exceptional."
+                                        </p>
+                                        <div class="client-info">
+                                            <strong>Sarah M.</strong>
+                                            <small class="text-muted d-block">Loyal Client for 3 Years</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-4">
+                                <div class="testimonial-card card h-100">
+                                    <div class="card-body">
+                                        <div class="rating mb-3">
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star text-warning"></i>
+                                        </div>
+                                        <p class="fst-italic">"Their gift services are extraordinary! The premium
+                                            packaging and personal touches made my wife's birthday unforgettable."</p>
+                                        <div class="client-info">
+                                            <strong>James K.</strong>
+                                            <small class="text-muted d-block">Premium Client</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-4">
+                                <div class="testimonial-card card h-100">
+                                    <div class="card-body">
+                                        <div class="rating mb-3">
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star text-warning"></i>
+                                        </div>
+                                        <p class="fst-italic">"The expertise of their staff and quality of their premium
+                                            products keep me coming back. True luxury wellness experience."</p>
+                                        <div class="client-info">
+                                            <strong>Amanda T.</strong>
+                                            <small class="text-muted d-block">Wellness Enthusiast</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Shop Section -->
+        <section id="shop" class="content-section">
+            <!-- Shop section content remains exactly the same as before -->
+            <div class="container">
+                <div class="section-header mb-5">
+                    <h2>Premium Beauty Collection</h2>
+                    <p>Curated luxury products from world-renowned brands</p>
+                    <div class="premium-badges">
+                        <span class="badge bg-warning text-dark me-2"><i class="fas fa-gem me-1"></i>Luxury
+                            Brands</span>
+                        <span class="badge bg-success me-2"><i class="fas fa-check-circle me-1"></i>Quality
+                            Guaranteed</span>
+                        <span class="badge bg-info"><i class="fas fa-shipping-fast me-1"></i>Free Delivery</span>
+                    </div>
+                </div>
+
+                <!-- Premium Brands Showcase -->
+                <div class="row mb-5">
+                    <div class="col-12">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5 class="card-title mb-3">Featured Luxury Brands</h5>
+                                <div class="brands-showcase">
+                                    <span class="brand-item mx-3">La Mer</span>
+                                    <span class="brand-item mx-3">Sisley</span>
+                                    <span class="brand-item mx-3">Chantecaille</span>
+                                    <span class="brand-item mx-3">Augustinus Bader</span>
+                                    <span class="brand-item mx-3">111SKIN</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-4" id="productsContainer">
+                    <!-- Products will be loaded here by JavaScript -->
+                </div>
+
+                <!-- Premium Guarantee -->
+                <div class="row mt-5">
+                    <div class="col-12">
+                        <div class="premium-guarantee card border-success">
+                            <div class="card-body text-center">
+                                <h4 class="text-success">
+                                    <i class="fas fa-shield-alt me-2"></i>Premium Quality Guarantee
+                                </h4>
+                                <p class="mb-0">All our products are 100% authentic, sourced directly from authorized
+                                    distributors with quality assurance.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-5" id="cartSection" style="display: none;">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h4 class="card-title mb-0">
+                                    <i class="fas fa-shopping-cart me-2"></i>Your Shopping Cart
+                                </h4>
+                            </div>
+                            <div class="card-body">
+                                <div id="cartItemsDetailed" class="mb-4">
+                                    <div class="text-center text-muted py-4">
+                                        <i class="fas fa-shopping-cart fa-3x mb-3"></i>
+                                        <p>Your cart is empty</p>
+                                    </div>
+                                </div>
+
+                                <!-- Cart Summary -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <strong>Total Items:</strong>
+                                            <span id="cartTotalItems" class="badge bg-primary">0</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <strong>Subtotal:</strong>
+                                            <span id="cartSubtotal">R 0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <strong>Delivery Fee:</strong>
+                                            <span id="cartDeliveryFee">R 0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <strong>Voucher Discount:</strong>
+                                            <span id="cartVoucherDiscount">R 0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <strong>Total Amount:</strong>
+                                            <span id="cartTotalAmount" class="h5 text-primary">R 0.00</span>
+                                        </div>
+                                    </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="" id="cartDeliveryCheckbox">
+                                                    <span class="form-check-label">Delivery (Add R 300.00)</span>
+                                                </label>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label for="cartVoucherInput" class="form-label">Voucher Code</label>
+                                                <div class="input-group">
+                                                    <input type="text" id="cartVoucherInput" class="form-control" placeholder="Enter voucher code">
+                                                    <button class="btn btn-outline-secondary" type="button" id="applyVoucherBtn">Apply</button>
+                                                </div>
+                                                <div id="cartVoucherMessage" class="form-text text-muted mt-1"></div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">Payment Method</label>
+                                                <div id="cartPaymentMethods">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="cartPayment" id="paymentPayfast" value="payfast" checked>
+                                                        <label class="form-check-label" for="paymentPayfast">Payfast (Online)</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="cartPayment" id="paymentEmail" value="email">
+                                                        <label class="form-check-label" for="paymentEmail">Email Order (We will email you an invoice)</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="d-grid gap-2">
+                                                <button class="btn btn-primary btn-lg" id="checkoutBtn"
+                                                    onclick="CartService.proceedToCheckout()" disabled>
+                                                    <i class="fas fa-credit-card me-2"></i>Proceed to Checkout
+                                                </button>
+                                                <button class="btn btn-outline-danger" id="clearCartBtn"
+                                                    onclick="CartService.clearCart()" disabled>
+                                                    <i class="fas fa-trash me-2"></i>Clear Cart
+                                                </button>
+                                            </div>
+                                        </div>
+                                </div>
+
+
+                                <!-- Staff Assignment (for admin/staff) -->
+                                <div id="cartStaffSection" class="mt-4" style="display: none;">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h6 class="card-title">
+                                                <i class="fas fa-user-tie me-2"></i>Staff Assignment
+                                            </h6>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <label for="cartStaff" class="form-label">Assign Staff
+                                                        Member</label>
+                                                    <select class="form-select" id="cartStaff">
+                                                        <option value="">Select staff member...</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">
+                                                        Assigning staff helps track performance and commissions.
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="modal fade" id="checkoutChoiceModal" tabindex="-1" aria-labelledby="checkoutChoiceTitle"
+            aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="checkoutChoiceTitle">Choose Payment Method</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <p>How would you like to proceed?</p>
+                        <button class="btn btn-success me-2" id="payfastBtn">Pay Now (Payfast)</button>
+                        <button class="btn btn-primary" id="emailOrderBtn">Place Order (Email)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Bookings Section -->
+        <section id="bookings" class="content-section">
+            <!-- Bookings section content remains exactly the same as before -->
+            <div class="container my-5">
+                <div class="section-header mb-5">
+                    <h2>Luxury Service Bookings</h2>
+                    <p>Experience premium treatments with our certified beauty experts</p>
+                    <div class="premium-badges">
+                        <span class="badge bg-warning text-dark me-2"><i class="fas fa-user-tie me-1"></i>Certified
+                            Experts</span>
+                        <span class="badge bg-success me-2"><i class="fas fa-clock me-1"></i>Flexible Scheduling</span>
+                        <span class="badge bg-info"><i class="fas fa-star me-1"></i>Premium Experience</span>
+                    </div>
+                </div>
+
+                <!-- Expert Team Showcase -->
+                <div class="row mb-5">
+                    <div class="col-12">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h5 class="card-title text-center mb-3">
+                                    <i class="fas fa-users me-2"></i>Meet Our Expert Team
+                                </h5>
+                                <div class="row text-center">
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <div class="expert-card">
+                                            <i class="fas fa-user-tie fa-2x text-primary mb-2"></i>
+                                            <h6>Sarah Johnson</h6>
+                                            <small class="text-muted">Senior Esthetician<br>10+ Years Experience</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <div class="expert-card">
+                                            <i class="fas fa-user-tie fa-2x text-primary mb-2"></i>
+                                            <h6>Mike Chen</h6>
+                                            <small class="text-muted">Massage Therapist<br>CIDESCO Certified</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <div class="expert-card">
+                                            <i class="fas fa-user-tie fa-2x text-primary mb-2"></i>
+                                            <h6>Emily Davis</h6>
+                                            <small class="text-muted">Nail Specialist<br>Premium Artistry</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <div class="expert-card">
+                                            <i class="fas fa-user-tie fa-2x text-primary mb-2"></i>
+                                            <h6>David Brown</h6>
+                                            <small class="text-muted">Spa Director<br>Wellness Expert</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-4" id="servicesContainer">
+                    <!-- Services will load here -->
+                </div>
+
+                <!-- Booking Benefits -->
+                <div class="row mt-5">
+                    <div class="col-12">
+                        <div class="card border-primary">
+                            <div class="card-body">
+                                <h5 class="card-title text-center text-primary">
+                                    <i class="fas fa-crown me-2"></i>Why Book With Our Experts?
+                                </h5>
+                                <div class="row text-center">
+                                    <div class="col-md-4 mb-3">
+                                        <i class="fas fa-graduation-cap fa-2x text-primary mb-2"></i>
+                                        <h6>Certified Professionals</h6>
+                                        <small>All our staff are certified with international training</small>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <i class="fas fa-heart fa-2x text-primary mb-2"></i>
+                                        <h6>Personalized Care</h6>
+                                        <small>Tailored treatments for your unique needs</small>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <i class="fas fa-shield-alt fa-2x text-primary mb-2"></i>
+                                        <h6>Premium Products</h6>
+                                        <small>Only the finest products for optimal results</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-5" id="bookingForm" style="display: none;">
+                    <h3>Complete Your Booking</h3>
+                    <form id="bookingDetailsForm">
+                        <div class="mb-3">
+                            <label for="serviceName" class="form-label">Service</label>
+                            <input type="text" class="form-control" id="serviceName" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="bookingDate" class="form-label">Date</label>
+                            <input type="date" class="form-control" id="bookingDate" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="bookingTime" class="form-label">Time</label>
+                            <select class="form-control" id="bookingTime" required>
+                                <option value="">Select a time</option>
+                                <option value="09:00">09:00 AM</option>
+                                <option value="10:00">10:00 AM</option>
+                                <option value="11:00">11:00 AM</option>
+                                <option value="12:00">12:00 PM</option>
+                                <option value="14:00">02:00 PM</option>
+                                <option value="15:00">03:00 PM</option>
+                                <option value="16:00">04:00 PM</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="staffSelectionSection" style="display: none;">
+                            <label for="assignedStaff" class="form-label">Preferred Staff Member</label>
+                            <select class="form-control" id="assignedStaff" required>
+                                <option value="">Select a staff member</option>
+                                <!-- Staff options will be loaded dynamically -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="specialRequests" class="form-label">Special Requests (Optional)</label>
+                            <textarea class="form-control" id="specialRequests" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success">Confirm Booking</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Gifts Section -->
+        <section id="gifts" class="content-section">
+            <!-- Gifts section content remains exactly the same as before -->
+            <div class="container my-5">
+                <div class="section-header mb-5">
+                    <h2>Signature Gift Experiences</h2>
+                    <p>Curated luxury gift packages that create unforgettable moments</p>
+                    <div class="premium-badges">
+                        <span class="badge bg-warning text-dark me-2"><i class="fas fa-gift me-1"></i>Luxury
+                            Packaging</span>
+                        <span class="badge bg-success me-2"><i class="fas fa-pen-fancy me-1"></i>Personalized</span>
+                        <span class="badge bg-info"><i class="fas fa-shipping-fast me-1"></i>Premium Delivery</span>
+                    </div>
+                </div>
+
+                <!-- Gift Benefits -->
+                <div class="row mb-5">
+                    <div class="col-12">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5 class="card-title mb-3">
+                                    <i class="fas fa-crown me-2"></i>The Tassel Group Gift Difference
+                                </h5>
+                                <div class="row">
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <i class="fas fa-ribbon fa-2x text-primary mb-2"></i>
+                                        <h6>Luxury Packaging</h6>
+                                        <small>Premium gift wrapping with personal touches</small>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <i class="fas fa-pen-nib fa-2x text-primary mb-2"></i>
+                                        <h6>Handwritten Cards</h6>
+                                        <small>Personalized messages in elegant calligraphy</small>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <i class="fas fa-star fa-2x text-primary mb-2"></i>
+                                        <h6>Premium Products</h6>
+                                        <small>Only the finest products in every package</small>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-3">
+                                        <i class="fas fa-shipping-fast fa-2x text-primary mb-2"></i>
+                                        <h6>White Glove Delivery</h6>
+                                        <small>Premium delivery service available</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-4" id="giftPackagesContainer">
+                    <!-- Gift packages will load here -->
+                </div>
+
+                <!-- Corporate Gifting -->
+                <div class="row mt-5">
+                    <div class="col-12">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <h4 class="text-warning">
+                                    <i class="fas fa-building me-2"></i>Corporate Gifting Solutions
+                                </h4>
+                                <p class="mb-3">Elevate your corporate gifting with our premium packages. Perfect for
+                                    client appreciation, employee rewards, and business milestones.</p>
+                                <button class="btn btn-warning">
+                                    <i class="fas fa-envelope me-2"></i>Inquire About Corporate Rates
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-5" id="giftCustomization" style="display: none;">
+                    <h3>Customize Your Gift</h3>
+                    <form id="giftCustomizationForm">
+                        <div class="mb-3">
+                            <label for="giftPackage" class="form-label">Selected Package</label>
+                            <input type="text" class="form-control" id="giftPackage" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="recipientName" class="form-label">Recipient Name</label>
+                            <input type="text" class="form-control" id="recipientName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="recipientEmail" class="form-label">Recipient Email</label>
+                            <input type="email" class="form-control" id="recipientEmail" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="giftMessage" class="form-label">Personal Message</label>
+                            <textarea class="form-control" id="giftMessage" rows="3" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="deliveryDate" class="form-label">Preferred Delivery Date</label>
+                            <input type="date" class="form-control" id="deliveryDate" required>
+                        </div>
+                        <div class="mb-3" id="giftStaffSection" style="display: none;">
+                            <label for="giftStaff" class="form-label">Assign to Staff Member (Optional)</label>
+                            <select class="form-control" id="giftStaff">
+                                <option value="">Select staff member (optional)</option>
+                                <!-- Staff options will be loaded dynamically -->
+                            </select>
+                            <small class="text-muted">Assign a staff member to handle this gift order.</small>
+                        </div>
+                        <button type="submit" class="btn btn-success">Create Gift</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Login/Register Section -->
+        <section id="login" class="content-section">
+            <!-- Login section content remains exactly the same as before -->
+            <div class="container">
+                <div class="login-container">
+                    <h2 class="text-center mb-4">Welcome Back</h2>
+                    <ul class="nav nav-tabs" id="authTabs">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="login-tab" data-bs-toggle="tab" href="#loginForm">Login</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="register-tab" data-bs-toggle="tab" href="#registerForm">Register</a>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="loginForm">
+                            <form id="loginFormElement">
+                                <div class="mb-3">
+                                    <label for="loginEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="loginEmail" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="loginPassword" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="loginPassword" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Login</button>
+                            </form>
+                        </div>
+                        <div class="tab-pane fade" id="registerForm">
+                            <form id="registerFormElement">
+                                <div class="mb-3">
+                                    <label for="registerName" class="form-label">Full Name</label>
+                                    <input type="text" class="form-control" id="registerName" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="registerEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="registerEmail" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="registerPassword" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="registerPassword" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="registerPhone" class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="registerPhone" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="registerAddress" class="form-label">Address</label>
+                                    <textarea class="form-control" id="registerAddress" rows="2" required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Register</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Profile Section -->
+        <section id="profile" class="content-section">
+            <!-- Profile section content remains exactly the same as before -->
+            <div class="container my-5">
+                <h2 class="mb-4">Your Profile</h2>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <div class="user-avatar mx-auto mb-3"
+                                    style="width: 80px; height: 80px; font-size: 1.5rem;" id="profileAvatar">U</div>
+                                <h5 id="profileName">User Name</h5>
+                                <p id="profileEmail">user@example.com</p>
+                                <p id="profileRole" class="badge bg-primary">Customer</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Account Information</h5>
+                                <form id="profileForm">
+                                    <div class="mb-3">
+                                        <label for="profileFullName" class="form-label">Full Name</label>
+                                        <input type="text" class="form-control" id="profileFullName">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="profileEmailInput" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="profileEmailInput">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="profilePhone" class="form-label">Phone</label>
+                                        <input type="tel" class="form-control" id="profilePhone">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="profileAddress" class="form-label">Address</label>
+                                        <textarea class="form-control" id="profileAddress" rows="3"></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Update Profile</button>
+                                </form>
+
+                                <hr class="my-4">
+
+                                <h5 class="card-title">Change Password</h5>
+                                <form id="passwordForm">
+                                    <div class="mb-3">
+                                        <label for="currentPassword" class="form-label">Current Password</label>
+                                        <input type="password" class="form-control" id="currentPassword">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="newPassword" class="form-label">New Password</label>
+                                        <input type="password" class="form-control" id="newPassword">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                                        <input type="password" class="form-control" id="confirmPassword">
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Change Password</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="content-section">
+            <div class="container my-5">
+                <h2 class="mb-4">Dashboard</h2>
+
+                <!-- Customer Dashboard -->
+                <div id="customerDashboard" style="display: none;">
+                    <!-- Loading State -->
+                    <div id="customerDashboardLoading" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading your luxury dashboard...</span>
+                        </div>
+                        <p class="mt-3 text-muted">Preparing your premium experience...</p>
+                    </div>
+
+                    <!-- Main Dashboard Content -->
+                    <div id="customerDashboardContent" style="display: none;">
+                        <!-- Premium Stats Cards -->
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="dashboard-card text-center">
+                                    <i class="fas fa-shopping-bag fa-2x mb-2"></i>
+                                    <h4 class="stats-number" id="customerOrders">0</h4>
+                                    <p>Premium Orders</p>
+                                    <small class="text-light">Luxury Products</small>
+                                    <div class="progress mt-2" style="height: 4px;">
+                                        <div class="progress-bar bg-info" id="ordersProgress" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="dashboard-card text-center">
+                                    <i class="fas fa-calendar-check fa-2x mb-2"></i>
+                                    <h4 class="stats-number" id="customerBookings">0</h4>
+                                    <p>Luxury Bookings</p>
+                                    <small class="text-light">Expert Services</small>
+                                    <div class="progress mt-2" style="height: 4px;">
+                                        <div class="progress-bar bg-success" id="bookingsProgress" style="width: 0%">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="dashboard-card text-center">
+                                    <i class="fas fa-gift fa-2x mb-2"></i>
+                                    <h4 class="stats-number" id="customerGifts">0</h4>
+                                    <p>Gifts Shared</p>
+                                    <small class="text-light">Premium Packages</small>
+                                    <div class="progress mt-2" style="height: 4px;">
+                                        <div class="progress-bar bg-warning" id="giftsProgress" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="dashboard-card text-center">
+                                    <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
+                                    <h4 class="stats-number" id="customerSpent">R 0</h4>
+                                    <p>Total Investment</p>
+                                    <small class="text-light">In Your Wellness</small>
+                                    <div class="progress mt-2" style="height: 4px;">
+                                        <div class="progress-bar bg-gold" id="spendingProgress" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Premium Status & Quick Actions -->
+                        <div class="row mt-4">
+                            <div class="col-md-8">
+                                <div class="card border-warning bg-dark">
+                                    <div class="card-body">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-8">
+                                                <h5 class="text-warning mb-3">
+                                                    <i class="fas fa-crown me-2"></i>Premium Membership Benefits
+                                                </h5>
+                                                <div class="benefits-list">
+                                                    <div class="benefit-item mb-2">
+                                                        <i class="fas fa-check text-success me-2"></i>
+                                                        <span class="text-dark">Priority Booking & Scheduling</span>
+                                                    </div>
+                                                    <div class="benefit-item mb-2">
+                                                        <i class="fas fa-check text-success me-2"></i>
+                                                        <span class="text-dark">Exclusive Offers & Discounts</span>
+                                                    </div>
+                                                    <div class="benefit-item mb-2">
+                                                        <i class="fas fa-check text-success me-2"></i>
+                                                        <span class="text-dark">Personalized Service Experience</span>
+                                                    </div>
+                                                    <div class="benefit-item">
+                                                        <i class="fas fa-check text-success me-2"></i>
+                                                        <span class="text-dark">Dedicated Support Team</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4 text-center">
+                                                <div class="premium-badge">
+                                                    <span class="badge bg-warning text-dark px-3 py-2 mb-2">
+                                                        <i class="fas fa-star me-1"></i>Premium Member
+                                                    </span>
+                                                    <div class="text-warning">
+                                                        <i class="fas fa-award fa-2x"></i>
+                                                        <div class="small mt-1">Valued Client</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-primary text-white">
+                                    <div class="card-body text-center">
+                                        <h6 class="mb-3">Quick Actions</h6>
+                                        <button class="btn btn-light btn-sm w-100 mb-2"
+                                            onclick="navigateToSection('shop')">
+                                            <i class="fas fa-plus me-1"></i>New Order
+                                        </button>
+                                        <button class="btn btn-light btn-sm w-100 mb-2"
+                                            onclick="navigateToSection('services')">
+                                            <i class="fas fa-calendar-plus me-1"></i>Book Service
+                                        </button>
+                                        <button class="btn btn-light btn-sm w-100"
+                                            onclick="navigateToSection('giftPackages')">
+                                            <i class="fas fa-gift me-1"></i>Send Gift
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Activity & Navigation -->
+                        <div class="row mt-4">
+                            <div class="col-md-8">
+                                <div class="card">
+                                    <div class="card-header bg-dark text-white">
+                                        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="recentActivityList">
+                                            <div class="text-center text-muted py-4">
+                                                <div class="spinner-border spinner-border-sm" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                                <p class="mt-2 mb-0">Loading your recent activities...</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header bg-dark text-white">
+                                        <h5 class="mb-0"><i class="fas fa-compass me-2"></i>Your Luxury Activities</h5>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="list-group list-group-flush">
+                                            <button
+                                                class="list-group-item list-group-item-action d-flex justify-content-between align-items-center active"
+                                                onclick="showCustomerSection('orders')">
+                                                <div>
+                                                    <i class="fas fa-shopping-bag me-2"></i>
+                                                    <span>My Premium Orders</span>
+                                                </div>
+                                                <span class="badge bg-primary rounded-pill" id="ordersBadge">0</span>
+                                            </button>
+                                            <button
+                                                class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                                                onclick="showCustomerSection('bookings')">
+                                                <div>
+                                                    <i class="fas fa-calendar me-2"></i>
+                                                    <span>My Luxury Bookings</span>
+                                                </div>
+                                                <span class="badge bg-success rounded-pill" id="bookingsBadge">0</span>
+                                            </button>
+                                            <button
+                                                class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                                                onclick="showCustomerSection('gifts')">
+                                                <div>
+                                                    <i class="fas fa-gift me-2"></i>
+                                                    <span>My Signature Gifts</span>
+                                                </div>
+                                                <span class="badge bg-warning rounded-pill" id="giftsBadge">0</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Customer Activities Sections -->
+                        <div id="customerOrdersSection" class="customer-section mt-4">
+                            <div class="card">
+                                <div
+                                    class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0"><i class="fas fa-shopping-bag me-2"></i>My Premium Orders</h5>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-light me-2"
+                                            onclick="refreshCustomerOrders()">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-light" onclick="printCustomerOrders()">
+                                            <i class="fas fa-print me-1"></i>Print
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover">
+                                            <thead class="table-dark">
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Order ID</th>
+                                                    <th>Items</th>
+                                                    <th>Staff</th>
+                                                    <th>Amount</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="customerOrdersBody">
+                                                <tr>
+                                                    <td colspan="7" class="text-center py-4">
+                                                        <div class="spinner-border spinner-border-sm" role="status">
+                                                            <span class="visually-hidden">Loading...</span>
+                                                        </div>
+                                                        <p class="mt-2 mb-0">Loading your orders...</p>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="customerBookingsSection" class="customer-section mt-4" style="display: none;">
+                            <div class="card">
+                                <div
+                                    class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0"><i class="fas fa-calendar me-2"></i>My Luxury Bookings</h5>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-light me-2"
+                                            onclick="refreshCustomerBookings()">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-light" onclick="printCustomerBookings()">
+                                            <i class="fas fa-print me-1"></i>Print
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover">
+                                            <thead class="table-dark">
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Service</th>
+                                                    <th>Staff</th>
+                                                    <th>Appointment</th>
+                                                    <th>Amount</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="customerBookingsBody">
+                                                <tr>
+                                                    <td colspan="7" class="text-center py-4">
+                                                        <div class="spinner-border spinner-border-sm" role="status">
+                                                            <span class="visually-hidden">Loading...</span>
+                                                        </div>
+                                                        <p class="mt-2 mb-0">Loading your bookings...</p>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="customerGiftsSection" class="customer-section mt-4" style="display: none;">
+                            <div class="card">
+                                <div
+                                    class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0"><i class="fas fa-gift me-2"></i>My Signature Gifts</h5>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-light me-2"
+                                            onclick="refreshCustomerGifts()">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-light" onclick="printCustomerGifts()">
+                                            <i class="fas fa-print me-1"></i>Print
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover">
+                                            <thead class="table-dark">
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Recipient</th>
+                                                    <th>Gift Package</th>
+                                                    <th>Staff</th>
+                                                    <th>Delivery Date</th>
+                                                    <th>Amount</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="customerGiftsBody">
+                                                <tr>
+                                                    <td colspan="8" class="text-center py-4">
+                                                        <div class="spinner-border spinner-border-sm" role="status">
+                                                            <span class="visually-hidden">Loading...</span>
+                                                        </div>
+                                                        <p class="mt-2 mb-0">Loading your gift orders...</p>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Staff Dashboard -->
+                <div id="staffDashboard" style="display: none;">
+                    <div class="section-header mb-4">
+                        <h3>Expert Staff Dashboard</h3>
+                        <p>Manage your premium client services and performance</p>
+                    </div>
+
+                    <!-- Statistics Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="dashboard-card text-center">
+                                <i class="fas fa-shopping-cart fa-2x mb-2"></i>
+                                <h4 class="stats-number" id="staffSales">0</h4>
+                                <p>Premium Sales</p>
+                                <small class="text-light">Luxury Products</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="dashboard-card text-center">
+                                <i class="fas fa-users fa-2x mb-2"></i>
+                                <h4 class="stats-number" id="staffClients">0</h4>
+                                <p>VIP Clients</p>
+                                <small class="text-light">Served</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="dashboard-card text-center">
+                                <i class="fas fa-clock fa-2x mb-2"></i>
+                                <h4 class="stats-number" id="staffHours">0</h4>
+                                <p>Service Hours</p>
+                                <small class="text-light">Expert Time</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="dashboard-card text-center">
+                                <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
+                                <h4 class="stats-number" id="staffCommission">R 0</h4>
+                                <p>Commission</p>
+                                <small class="text-light">Earned</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upcoming Appointments Section -->
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div
+                                    class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-calendar-check me-2"></i>Upcoming Appointments
+                                    </h5>
+                                    <button class="btn btn-sm btn-outline-light" onclick="printStaffAppointments()">
+                                        <i class="fas fa-print"></i>
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-group" id="staffAppointments">
+                                        <li class="list-group-item">No upcoming appointments</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Sales Section -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div
+                                    class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-chart-line me-2"></i>Recent Sales
+                                    </h5>
+                                    <button class="btn btn-sm btn-outline-light" onclick="printStaffSales()">
+                                        <i class="fas fa-print"></i>
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-group" id="staffRecentSales">
+                                        <li class="list-group-item">No recent sales</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activities Section -->
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div
+                                    class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-history me-2"></i>My Recent Activities
+                                    </h5>
+                                    <button class="btn btn-sm btn-outline-light" onclick="printStaffActivities()">
+                                        <i class="fas fa-print"></i>
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover">
+                                            <thead class="table-dark">
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Type</th>
+                                                    <th>Customer</th>
+                                                    <th>Description</th>
+                                                    <th>Amount</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="staffActivitiesBody">
+                                                <tr>
+                                                    <td colspan="6" class="text-center">No recent activities</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Voucher Codes Section -->
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header bg-dark text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-ticket-alt me-2"></i>My Voucher Codes
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row" id="staffVouchers">
+                                        <div class="col-12">
+                                            <p>No vouchers assigned to you</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions Section -->
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <button class="btn btn-light w-100 mb-2" onclick="printStaffAppointments()">
+                                                <i class="fas fa-print me-2"></i>Print Appointments
+                                            </button>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <button class="btn btn-light w-100 mb-2" onclick="printStaffSales()">
+                                                <i class="fas fa-print me-2"></i>Print Sales Report
+                                            </button>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <button class="btn btn-light w-100" onclick="printAllStaffReports()">
+                                                <i class="fas fa-print me-2"></i>Print All Reports
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Admin Dashboard -->
+                <div id="adminDashboard" style="display: none;">
+                    <div class="section-header mb-4">
+                        <h3>Premium Management Dashboard</h3>
+                        <p>Oversee luxury operations and business excellence</p>
+                    </div>
+
+                    <div class="admin-controls mb-4">
+                        <h4>Luxury Business Controls</h4>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <button class="btn btn-primary w-100 mb-2" onclick="showAdminModal('addService')">
+                                    <i class="fas fa-plus me-2"></i>Add Premium Service
+                                </button>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-primary w-100 mb-2" onclick="showAdminModal('addProduct')">
+                                    <i class="fas fa-plus me-2"></i>Add Luxury Product
+                                </button>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-primary w-100 mb-2" onclick="showAdminModal('addVoucher')">
+                                    <i class="fas fa-tag me-2"></i>Create VIP Voucher
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Business Excellence Metrics -->
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="dashboard-card text-center">
+                                <i class="fas fa-chart-line fa-2x mb-2"></i>
+                                <h4 class="stats-number" id="totalRevenue">R 0</h4>
+                                <p>Premium Revenue</p>
+                                <small class="text-light">Luxury Business</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="dashboard-card text-center">
+                                <i class="fas fa-user-friends fa-2x mb-2"></i>
+                                <h4 class="stats-number" id="totalUsers">0</h4>
+                                <p>VIP Clients</p>
+                                <small class="text-light">Premium Members</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="dashboard-card text-center">
+                                <i class="fas fa-calendar-check fa-2x mb-2"></i>
+                                <h4 class="stats-number" id="totalBookings">0</h4>
+                                <p>Luxury Bookings</p>
+                                <small class="text-light">Expert Services</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="dashboard-card text-center">
+                                <i class="fas fa-box fa-2x mb-2"></i>
+                                <h4 class="stats-number" id="totalProducts">0</h4>
+                                <p>Premium Products</p>
+                                <small class="text-light">Sold</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Business Excellence Badge -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <h5 class="text-success">
+                                        <i class="fas fa-award me-2"></i>Premium Business Excellence
+                                    </h5>
+                                    <p class="mb-0">Managing Cape Town's premier beauty and wellness destination with
+                                        10+ years of luxury service excellence.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add this to your admin dashboard, after the admin controls -->
+                    <div id="bookingsSummary" class="mb-4">
+                        <!-- Unassigned bookings alert will appear here -->
+                    </div>
+
+                    <!-- NEW: Additional Stats Cards -->
+                    <div class="row mt-4">
+                        <div class="col-md-3 mb-3">
+                            <div class="dashboard-card text-center h-100">
+                                <i class="fas fa-spa fa-2x mb-2 text-primary"></i>
+                                <h4 class="stats-number" id="totalServices">0</h4>
+                                <p class="text-muted mb-0">Total Services</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="dashboard-card text-center h-100">
+                                <i class="fas fa-shopping-cart fa-2x mb-2 text-success"></i>
+                                <h4 class="stats-number" id="totalOrders">0</h4>
+                                <p class="text-muted mb-0">Total Orders</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="dashboard-card text-center h-100">
+                                <i class="fas fa-gift fa-2x mb-2 text-warning"></i>
+                                <h4 class="stats-number" id="totalGiftOrders">0</h4>
+                                <p class="text-muted mb-0">Gift Orders</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="dashboard-card text-center h-100">
+                                <i class="fas fa-tags fa-2x mb-2 text-info"></i>
+                                <h4 class="stats-number" id="totalVouchers">0</h4>
+                                <p class="text-muted mb-0">Active Vouchers</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Business Overview</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="revenueChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Staff Performance</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="staffPerformanceChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add this to the admin dashboard section -->
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Order Management</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Order ID</th>
+                                                    <th>Customer</th>
+                                                    <th>Items</th>
+                                                    <th>Staff</th>
+                                                    <th>Amount</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="adminOrdersBody">
+                                                <tr>
+                                                    <td colspan="8" class="text-center">Loading orders...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Booking Management</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Booking ID</th>
+                                                    <th>Customer</th>
+                                                    <th>Service</th>
+                                                    <th>Staff</th>
+                                                    <th>Appointment</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="adminBookingsBody">
+                                                <tr>
+                                                    <td colspan="8" class="text-center">Loading bookings...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Gift Order Management</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Order ID</th>
+                                                    <th>Customer</th>
+                                                    <th>Recipient</th>
+                                                    <th>Package</th>
+                                                    <th>Staff</th>
+                                                    <th>Delivery</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="adminGiftsBody">
+                                                <tr>
+                                                    <td colspan="9" class="text-center">Loading gift orders...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Popular Services</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="servicesChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Recent Activity</h5>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-group" id="recentActivity">
+                                        <li class="list-group-item">No recent activity</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4">
+                    <h5><i class="fas fa-spa me-2"></i>Tassel Group</h5>
+                    <p>Gauteng's Premier Beauty & Wellness Destination. Experience luxury, expertise, and exceptional
+                        service since 2010.</p>
+                    <div class="trust-badges">
+                        <small class="d-block"><i class="fas fa-check-circle me-1 text-success"></i>Certified
+                            Professionals</small>
+                        <small class="d-block"><i class="fas fa-check-circle me-1 text-success"></i>Premium
+                            Products</small>
+                        <small class="d-block"><i class="fas fa-check-circle me-1 text-success"></i>5-Star Rated
+                            Service</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <h5>Luxury Services</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="#" onclick="showSection('home')" class="text-light">Premium Experience</a></li>
+                        <li><a href="#" onclick="showSection('shop')" class="text-light">Luxury Products</a></li>
+                        <li><a href="#" onclick="showSection('bookings')" class="text-light">Expert Bookings</a></li>
+                        <li><a href="#" onclick="showSection('gifts')" class="text-light">Signature Gifts</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h5>Premium Contact</h5>
+                    <p><i class="fas fa-map-marker-alt me-2"></i>55 True North Road, Mulbarton, Johannesburg, South
+                        Africa</p>
+                    <p><i class="fas fa-phone me-2"></i>072 960 5153</p>
+                    <p><i class="fas fa-envelope me-2"></i>info@tasselgroup.co.za</p>
+                    <div class="social-links mt-3">
+                        <a href="https://www.tiktok.com/@tasselgroup" class="text-light me-3"><i
+                                class="fab fa-tiktok"></i></a>
+                        <a href="https://www.instagram.com/tasselbeautyandwellnessstudio/" class="text-light me-3"><i
+                                class="fab fa-instagram"></i></a>
+                        <a href="https://web.facebook.com/tasselbeautyandwellnessstudio/" class="text-light me-3"><i
+                                class="fab fa-facebook"></i></a>
+                    </div>
+                </div>
+            </div>
+            <hr class="my-4">
+            <div class="text-center">
+                <p>&copy; 2025 Tassel Group. Designed by Established Media & Enterprises (PTY) Ltd. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap & Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="scripts.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- Admin Modals -->
+    <div class="modal fade" id="adminModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="adminModalTitle">Admin Action</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="adminModalBody">
+                    <!-- Modal content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt Modal -->
+    <div class="modal fade" id="receiptModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Receipt</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="receiptContent">
+                    <!-- Receipt content will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="printReceipt()">
+                        <i class="fas fa-print me-2"></i>Print Receipt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Staff Assignment Modal -->
+    <div class="modal fade" id="staffAssignmentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="staffAssignmentModalTitle">Assign Staff to Booking</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="staffAssignmentModalBody">
+                    <div class="mb-3">
+                        <label for="bookingDetails" class="form-label">Booking Details</label>
+                        <div id="bookingDetails" class="p-3 bg-light rounded">
+                            <strong>Customer:</strong> <span id="assignmentCustomerName">-</span><br>
+                            <strong>Service:</strong> <span id="assignmentServiceName">-</span><br>
+                            <strong>Date:</strong> <span id="assignmentBookingDate">-</span><br>
+                            <strong>Time:</strong> <span id="assignmentBookingTime">-</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="staffAssignmentDropdown" class="form-label">Select Staff Member</label>
+                        <select class="form-control" id="staffAssignmentDropdown">
+                            <option value="">Select staff member...</option>
+                            <!-- Staff options will be populated dynamically -->
+                        </select>
+                    </div>
+                    <div id="currentAssignment" class="mb-3" style="display: none;">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Currently assigned to: <span id="currentStaffName">-</span>
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="assignStaffToBooking()">
+                        <i class="fas fa-user-plus me-1"></i>Assign Staff
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Activity Modal (for staff/admin) -->
+    <div id="userActivityModal" class="modal fade" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="userActivityTitle">User Activity</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="userActivityContent">
+                    <!-- Totals/Stats -->
+                    <div class="row mb-3">
+                        <div class="col">
+                            <span>Total Bookings: <strong id="totalBookingsCount">0</strong></span>
+                            <span>Total Orders: <strong id="totalOrdersCount">0</strong></span>
+                            <span>Total Gifts: <strong id="totalGiftsCount">0</strong></span>
+                            <span>Total Spent: <strong id="totalSpent">R 0.00</strong></span>
+                        </div>
+                    </div>
+                    <!-- Bookings -->
+                    <h5>Bookings</h5>
+                    <div id="userBookingsList"></div>
+                    <!-- Orders -->
+                    <h5 class="mt-4">Orders</h5>
+                    <div id="userOrdersList"></div>
+                    <!-- Gifts -->
+                    <h5 class="mt-4">Gift Orders</h5>
+                    <div id="userGiftsList"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- User Search Modal -->
+    <div class="modal fade" id="userSearchModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Search User Activity</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="userSearchInput" class="form-label">Search by User Email or Name</label>
+                        <div class="input-group">
+                                <input type="text" class="form-control" id="userSearchInput"
+                                placeholder="Enter email or name...">
+                            <button class="btn btn-outline-secondary" type="button" id="userSearchBtn" onclick="debouncedUserSearch()">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="userSearchResults" class="mt-3">
+                        <!-- Search results will appear here -->
+                    </div>
+                </div>
+                    <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="searchUsers()">Search</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="paymentModalLabel">Manual Payment Options</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Online payment unavailable. Please select a manual payment method.
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary btn-lg" onclick="CartService.processManualPayment('cash')">
+                            <i class="fas fa-money-bill-wave me-2"></i>Cash Payment
+                        </button>
+                        <button class="btn btn-success btn-lg" onclick="CartService.processManualPayment('card')">
+                            <i class="fas fa-credit-card me-2"></i>Card Payment (Manual)
+                        </button>
+                        <button class="btn btn-info btn-lg" onclick="CartService.processManualPayment('eft')">
+                            <i class="fas fa-university me-2"></i>EFT Payment
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Staff Receipts Modal -->
+    <div class="modal fade" id="staffReceiptsModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">My Recent Receipts</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Customer</th>
+                                    <th>Service/Product</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staffReceiptsBody">
+                                <!-- Receipts will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="printAllStaffReceipts()">
+                        <i class="fas fa-print me-2"></i>Print All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

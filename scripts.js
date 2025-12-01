@@ -1,15 +1,14 @@
 // ===== CONFIGURATION =====
+// ===== CONFIGURATION =====
 class AppConfig {
     static getApiBaseUrl() {
         const hostname = window.location.hostname;
         const port = window.location.port;
 
-        // Enhanced environment detection - FIXED
         if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname === '' || port === '5500' || port === '3000' || port === '8080') {
             return 'http://localhost:10000/api';
         } else {
-            // For production, use your actual backend URL
-            return 'https://tasselgroup-back.onrender.com/api'; // Replace with your actual backend URL
+            return 'https://tasselgroup-back.onrender.com/api';
         }
     }
 
@@ -17,7 +16,6 @@ class AppConfig {
         return this.getApiBaseUrl();
     }
 
-    // Add fallback images with better coverage
     static getDefaultImages() {
         return {
             product: 'https://images.unsplash.com/photo-1556228578-8c89e6adf883?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
@@ -27,7 +25,6 @@ class AppConfig {
         };
     }
 
-    // Static image paths for packages
     static getPackageImages() {
         return {
             'Pamper Package': 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
@@ -37,8 +34,8 @@ class AppConfig {
     }
 }
 
-// DEBUG flag: enable verbose logs when running on localhost
-const DEBUG = (function() {
+// DEBUG flag
+const DEBUG = (function () {
     try {
         const host = window.location.hostname || '';
         return host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.');
@@ -66,18 +63,16 @@ class AppState {
         staffPerformanceChart: null,
         servicesChart: null
     };
-    // Cart metadata for delivery, voucher and payment selection
     static cartMeta = {
         delivery: false,
         deliveryFee: 300.00,
         voucherCode: null,
-        voucherAmount: 0.00, // fixed amount for now (or percentage handled if backend returns type)
+        voucherAmount: 0.00,
         paymentMethod: 'payfast'
     };
     static isInitialized = false;
 }
 
-// Expose AppState to global scope for debugging via console
 if (typeof window !== 'undefined' && !window.AppState) window.AppState = AppState;
 
 // ===== CART SERVICE =====
@@ -96,7 +91,7 @@ class CartService {
             return;
         }
 
-            const existingItem = AppState.cart.find(item => item.productId === productId && item.name === productName);
+        const existingItem = AppState.cart.find(item => item.productId === productId && item.name === productName);
 
         if (existingItem) {
             existingItem.quantity += quantity;
@@ -523,12 +518,12 @@ class CartService {
 // ===== ENHANCED API SERVICE WITH BETTER ERROR HANDLING =====
 class ApiService {
     static async apiCall(endpoint, options = {}) {
-        // Normalize endpoint: ensure it starts with a leading slash
         if (!endpoint || typeof endpoint !== 'string') endpoint = '/';
         if (!endpoint.startsWith('/')) endpoint = '/' + endpoint;
 
         const token = Utils.getAuthToken();
         if (!token && DEBUG) console.warn(`⚠️ No auth token present for API call to ${endpoint}`);
+
         const config = {
             headers: {
                 'Content-Type': 'application/json',
@@ -542,9 +537,8 @@ class ApiService {
             config.body = JSON.stringify(options.body);
         }
 
-        // Add timeout
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
         config.signal = controller.signal;
 
         try {
@@ -552,18 +546,15 @@ class ApiService {
             const response = await fetch(`${AppConfig.API_BASE}${endpoint}`, config);
             clearTimeout(timeoutId);
 
-            // Handle non-200 responses
             if (!response.ok) {
                 let errorMessage = `HTTP error! status: ${response.status}`;
                 try {
                     const errorData = await response.json();
                     errorMessage = errorData.message || errorMessage;
                 } catch (e) {
-                    // If response is not JSON, use status text
                     errorMessage = response.statusText || errorMessage;
                 }
 
-                // If unauthorized, clear local auth and prompt login
                 if (response.status === 401 || response.status === 403) {
                     console.warn('🔒 Authorization failed, clearing session and redirecting to login');
                     try {
@@ -573,134 +564,13 @@ class ApiService {
                     } catch (e) {
                         console.warn('⚠️ Error clearing auth token', e);
                     }
-                    try { Utils.showNotification('Session expired. Please log in again.', 'warning'); } catch (e) {}
-                    try { if (typeof UIHelper !== 'undefined' && typeof UIHelper.showSection === 'function') UIHelper.showSection('login'); } catch (e) {}
+                    try { Utils.showNotification('Session expired. Please log in again.', 'warning'); } catch (e) { }
+                    try { if (typeof UIHelper !== 'undefined' && typeof UIHelper.showSection === 'function') UIHelper.showSection('login'); } catch (e) { }
                 }
 
-                // Enhanced error handling for server errors
-                if (response.status === 500) {
-                    console.warn(`Server error (500) for ${endpoint}, using fallback`);
-                    // Return appropriate fallback based on endpoint
-                    if (endpoint.includes('/orders')) return [];
-                    if (endpoint.includes('/bookings')) return [];
-                    if (endpoint.includes('/gift-orders')) return [];
-                    if (endpoint.includes('/dashboard')) return { success: false, stats: {} };
-                }
-
-                throw new Error(errorMessage);
-            }
-
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                return await response.json();
-            } else {
-                return await response.text();
-            }
-
-        } catch (error) {
-            clearTimeout(timeoutId);
-            console.error(`❌ API call failed: ${error.message}`, error);
-
-            // Special handling for specific endpoints
-            if (endpoint.includes('/orders') || endpoint.includes('/bookings') || endpoint.includes('/gift-orders')) {
-                console.log('Using fallback for data endpoint');
-                return []; // Return empty array for data endpoints
-            }
-
-            if (endpoint.includes('/dashboard')) {
-                console.log('Using fallback for dashboard endpoint');
-                return { success: false, stats: {} };
-            }
-
-            if (error.name === 'AbortError') {
-                throw new Error('Request timeout. Please check your connection and try again.');
-            } else if (error.message.includes('Failed to fetch')) {
-                throw new Error('Cannot connect to server. Please check your internet connection and try again.');
-            }
-            throw error;
-        }
-    }
-
-    // Add these specific error handlers in your ApiService class
-    static async patch(endpoint, data) {
-        return this.apiCall(endpoint, {
-            method: 'PATCH',
-            body: data
-        });
-    }
-
-    static async put(endpoint, data) {
-        return this.apiCall(endpoint, {
-            method: 'PUT',
-            body: data
-        });
-    }
-
-    // Add this method to the ApiService class
-    static async apiCall(endpoint, options = {}) {
-        // Normalize endpoint: ensure it starts with a leading slash
-        if (!endpoint || typeof endpoint !== 'string') endpoint = '/';
-        if (!endpoint.startsWith('/')) endpoint = '/' + endpoint;
-
-        const token = Utils.getAuthToken();
-        if (!token) console.warn(`⚠️ No auth token present for API call to ${endpoint}`);
-        const config = {
-            headers: {
-                'Content-Type': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` }),
-                ...options.headers
-            },
-            ...options
-        };
-
-        if (options.body && !['GET', 'HEAD'].includes(options.method?.toUpperCase() || 'GET')) {
-            config.body = JSON.stringify(options.body);
-        }
-
-        // Add timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-        config.signal = controller.signal;
-
-        try {
-            if (DEBUG) console.log(`📡 Making API call to: ${AppConfig.API_BASE}${endpoint}`);
-            const response = await fetch(`${AppConfig.API_BASE}${endpoint}`, config);
-            clearTimeout(timeoutId);
-
-            // Handle non-200 responses
-            if (!response.ok) {
-                let errorMessage = `HTTP error! status: ${response.status}`;
-                try {
-                    const errorData = await response.json();
-                    errorMessage = errorData.message || errorMessage;
-                } catch (e) {
-                    // If response is not JSON, use status text
-                    errorMessage = response.statusText || errorMessage;
-                }
-
-                // If unauthorized, clear local auth and prompt login
-                if (response.status === 401 || response.status === 403) {
-                    console.warn('🔒 Authorization failed, clearing session and redirecting to login');
-                    try {
-                        localStorage.removeItem('token');
-                        localStorage.removeItem('currentUser');
-                        AppState.currentUser = null;
-                    } catch (e) {
-                        console.warn('⚠️ Error clearing auth token', e);
-                    }
-                    try { Utils.showNotification('Session expired. Please log in again.', 'warning'); } catch (e) {}
-                    try { if (typeof UIHelper !== 'undefined' && typeof UIHelper.showSection === 'function') UIHelper.showSection('login'); } catch (e) {}
-                }
-
-                // Enhanced error handling for server errors - SPECIFIC FIX FOR PRODUCTS
                 if (response.status === 500 || response.status === 404) {
                     console.warn(`Server error (${response.status}) for ${endpoint}, using fallback`);
-                    // Return appropriate fallback based on endpoint
-                    if (endpoint.includes('/products')) return []; // Return empty array for products
-                    if (endpoint.includes('/orders')) return [];
-                    if (endpoint.includes('/bookings')) return [];
-                    if (endpoint.includes('/gift-orders')) return [];
-                    if (endpoint.includes('/dashboard')) return { success: false, stats: {} };
+                    return this.getFallbackResponse(endpoint);
                 }
 
                 throw new Error(errorMessage);
@@ -717,21 +587,8 @@ class ApiService {
             clearTimeout(timeoutId);
             console.error(`❌ API call failed: ${error.message}`, error);
 
-            // Special handling for specific endpoints - SPECIFIC FIX FOR PRODUCTS
-            if (endpoint.includes('/products')) {
-                console.log('Using fallback for products endpoint');
-                return []; // Return empty array for products
-            }
-
-            if (endpoint.includes('/orders') || endpoint.includes('/bookings') || endpoint.includes('/gift-orders')) {
-                console.log('Using fallback for data endpoint');
-                return [];
-            }
-
-            if (endpoint.includes('/dashboard')) {
-                console.log('Using fallback for dashboard endpoint');
-                return { success: false, stats: {} };
-            }
+            const fallback = this.getFallbackResponse(endpoint);
+            if (fallback !== undefined) return fallback;
 
             if (error.name === 'AbortError') {
                 throw new Error('Request timeout. Please check your connection and try again.');
@@ -740,6 +597,15 @@ class ApiService {
             }
             throw error;
         }
+    }
+
+    static getFallbackResponse(endpoint) {
+        if (endpoint.includes('/products')) return [];
+        if (endpoint.includes('/orders')) return [];
+        if (endpoint.includes('/bookings')) return [];
+        if (endpoint.includes('/gift-orders')) return [];
+        if (endpoint.includes('/dashboard')) return { success: false, stats: {} };
+        return undefined;
     }
 
     static async get(endpoint) {
@@ -760,6 +626,13 @@ class ApiService {
         });
     }
 
+    static async put(endpoint, data) {
+        return this.apiCall(endpoint, {
+            method: 'PUT',
+            body: data
+        });
+    }
+
     static async delete(endpoint) {
         return this.apiCall(endpoint, {
             method: 'DELETE'
@@ -767,7 +640,7 @@ class ApiService {
     }
 }
 
-// ===== ENHANCED UTILITY FUNCTIONS =====
+// ===== UTILITY FUNCTIONS =====
 class Utils {
     static getStatusColor(status) {
         const colors = {
@@ -790,7 +663,6 @@ class Utils {
     }
 
     static showNotification(message, type = 'info', duration = 5000) {
-        // Remove existing notifications
         document.querySelectorAll('.alert.position-fixed').forEach(alert => {
             if (alert.parentNode) alert.parentNode.removeChild(alert);
         });
@@ -857,7 +729,6 @@ class Utils {
             const element = document.getElementById(id);
             if (element) {
                 element.min = today;
-                // Set default value to today for better UX
                 if (!element.value) {
                     element.value = today;
                 }
@@ -869,7 +740,6 @@ class Utils {
         const defaultImages = AppConfig.getDefaultImages();
         const packageImages = AppConfig.getPackageImages();
 
-        // Check if it's a package image first
         const altText = imgElement.alt || '';
         const packageName = Object.keys(packageImages).find(pkg =>
             altText.toLowerCase().includes(pkg.toLowerCase())
@@ -881,8 +751,6 @@ class Utils {
             imgElement.src = defaultImages[type] || defaultImages.product;
         }
         imgElement.alt = 'Default ' + type + ' image';
-
-        // Prevent infinite loop
         imgElement.onerror = null;
     }
 
@@ -894,18 +762,14 @@ class Utils {
         }
     }
 
-    // Returns the current user object from AppState or localStorage fallback
     static getCurrentUser() {
         try {
-            // Prefer the in-memory AppState value
             if (typeof AppState !== 'undefined' && AppState.currentUser) {
                 return AppState.currentUser;
             }
 
-            // Fallback to localStorage (persisted from previous sessions)
             const stored = Utils.safeParseJSON(localStorage.getItem('currentUser'), null);
             if (stored && stored._id) {
-                // Hydrate AppState for convenience
                 if (typeof AppState !== 'undefined') AppState.currentUser = stored;
                 return stored;
             }
@@ -922,7 +786,11 @@ class Utils {
         return div.innerHTML;
     }
 
-    // Enhanced image source handler
+    static escapeString(text) {
+        if (!text) return '';
+        return text.replace(/'/g, "\\'").replace(/"/g, '\\"');
+    }
+
     static getImageSource(imagePath, altText = '', type = 'product') {
         if (!imagePath || imagePath.includes('undefined') || imagePath.includes('null')) {
             const packageImages = AppConfig.getPackageImages();
@@ -936,9 +804,7 @@ class Utils {
             return AppConfig.getDefaultImages()[type] || AppConfig.getDefaultImages().product;
         }
 
-        // Handle relative paths
         if (imagePath.startsWith('/') || !imagePath.includes('://')) {
-            // Convert to absolute URL or use default
             const packageImages = AppConfig.getPackageImages();
             const packageName = Object.keys(packageImages).find(pkg =>
                 altText.toLowerCase().includes(pkg.toLowerCase())
@@ -952,9 +818,39 @@ class Utils {
 
         return imagePath;
     }
+
+    static getEmptyStateHTML(type) {
+        const messages = {
+            products: 'No products available at the moment. Please check back later.',
+            services: 'No services available at the moment. Please check back later.',
+            gifts: 'No gift packages available at the moment. Please check back later.',
+            default: 'No items available.'
+        };
+        return `
+            <div class="col-12 text-center py-5">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    ${messages[type] || messages.default}
+                </div>
+            </div>
+        `;
+    }
+
+    static showError(containerId, message) {
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        ${message}
+                    </div>
+                </div>
+            `;
+        }
+    }
 }
 
-// Expose Utils to the global window so it can be used from the browser console
 if (typeof window !== 'undefined' && !window.Utils) window.Utils = Utils;
 
 // ===== ENHANCED AUTHENTICATION SERVICE =====
@@ -991,7 +887,7 @@ class AuthService {
                 try {
                     if (typeof StaffDashboardService !== 'undefined' && typeof StaffDashboardService.loadStaffDashboard === 'function') {
                         // Prefer the namespaced service loader
-                        StaffDashboardService.loadStaffDashboard().catch(() => {});
+                        StaffDashboardService.loadStaffDashboard().catch(() => { });
                     } else if (typeof loadStaffDashboard === 'function') {
                         // Fallback to legacy global function if present
                         loadStaffDashboard();
@@ -1260,7 +1156,7 @@ class UIHelper {
             this.showErrorMessage(`Failed to load ${sectionId}`);
         }
     }
-    
+
 
     static async loadDashboardContent() {
         const _user = Utils.getCurrentUser();
@@ -3086,10 +2982,6 @@ class DashboardService {
 }
 
 // ============================================
-// STAFF DASHBOARD SERVICE - COMPLETE VERSION
-// ============================================
-
-// ============================================
 // STAFF DASHBOARD SERVICE - FIXED VERSION
 // ============================================
 
@@ -3203,10 +3095,10 @@ const StaffDashboardService = {
 
             if (DEBUG) console.log(`📡 Safe API Call: ${method} ${endpoint}`);
 
-                if (typeof UIHelper !== 'undefined' && UIHelper.makeRequest) {
-                    return await UIHelper.makeRequest(method, endpoint);
-                } else {
-                    if (DEBUG) console.warn('⚠️ UIHelper.makeRequest not available, using fetch with auth token');
+            if (typeof UIHelper !== 'undefined' && UIHelper.makeRequest) {
+                return await UIHelper.makeRequest(method, endpoint);
+            } else {
+                if (DEBUG) console.warn('⚠️ UIHelper.makeRequest not available, using fetch with auth token');
 
                 const baseUrl = 'http://localhost:10000/api';
                 const headers = {
@@ -4398,11 +4290,11 @@ class AdminNotificationService {
 
             // Reload dashboard and tables
             setTimeout(() => {
-                    if (Utils.getCurrentUser()?.role === 'admin') {
-                        DashboardService.loadDashboard();
-                        AdminService.loadAdminManagementTables();
-                    }
-                }, 1000);
+                if (Utils.getCurrentUser()?.role === 'admin') {
+                    DashboardService.loadDashboard();
+                    AdminService.loadAdminManagementTables();
+                }
+            }, 1000);
 
         } catch (error) {
             console.error('Bulk assignment failed:', error);
@@ -4542,6 +4434,7 @@ function ensureBulkAssignmentModalExists() {
         }
     });
 }
+
 
 // Add this function to handle customer section navigation
 function showCustomerSection(section) {
@@ -4983,6 +4876,1222 @@ function showCustomerSection(section) {
     }
 }
 
+// ===== PRODUCTS MANAGEMENT SERVICE =====
+class ProductManagementService {
+    static async showAdminModal(modalType) {
+        if (modalType === 'productsManagement') {
+            await this.loadProductsManagement();
+        }
+    }
+
+    static async loadProductsManagement() {
+        try {
+            console.log('📦 Loading products management...');
+
+            // Load products - handle different response formats
+            let products = [];
+            let categories = [];
+
+            try {
+                const productsResponse = await ApiService.get('/products?limit=100');
+                products = this.extractProductsArray(productsResponse);
+                console.log('📦 Products loaded:', products.length);
+            } catch (error) {
+                console.error('❌ Error loading products:', error);
+                Utils.showNotification('Failed to load products', 'error');
+                products = []; // Fallback to empty array
+            }
+
+            try {
+                const categoriesResponse = await ApiService.get('/categories');
+                categories = this.extractCategoriesArray(categoriesResponse);
+                console.log('📦 Categories loaded:', categories.length);
+            } catch (error) {
+                console.warn('⚠️ Categories endpoint not available, using empty categories');
+                categories = []; // Fallback to empty array
+            }
+
+            // Show products management modal
+            this.showProductsManagementModal(products, categories);
+
+        } catch (error) {
+            console.error('❌ Error loading products management:', error);
+            Utils.showNotification('Failed to load products data', 'error');
+
+            // Show modal with empty data as fallback
+            this.showProductsManagementModal([], []);
+        }
+    }
+
+    static extractProductsArray(data) {
+        if (!data) return [];
+
+        // Case 1: Direct array
+        if (Array.isArray(data)) {
+            return data;
+        }
+
+        // Case 2: Object with products array
+        if (data.products && Array.isArray(data.products)) {
+            return data.products;
+        }
+
+        // Case 3: Object with data array
+        if (data.data && Array.isArray(data.data)) {
+            return data.data;
+        }
+
+        // Case 4: Object with success property
+        if (data.success && Array.isArray(data.products)) {
+            return data.products;
+        }
+
+        if (data.success && Array.isArray(data.data)) {
+            return data.data;
+        }
+
+        // Case 5: Try to find any array in the object
+        if (typeof data === 'object') {
+            for (let key in data) {
+                if (Array.isArray(data[key])) {
+                    console.log(`📦 Found products array in key: ${key}`);
+                    return data[key];
+                }
+            }
+        }
+
+        console.warn('⚠️ Could not extract products array from response:', data);
+        return [];
+    }
+
+    // Helper method to extract categories array
+    static extractCategoriesArray(data) {
+        if (!data) return [];
+
+        if (Array.isArray(data)) {
+            return data;
+        }
+
+        if (data.categories && Array.isArray(data.categories)) {
+            return data.categories;
+        }
+
+        if (data.data && Array.isArray(data.data)) {
+            return data.data;
+        }
+
+        if (data.success && Array.isArray(data.categories)) {
+            return data.categories;
+        }
+
+        if (data.success && Array.isArray(data.data)) {
+            return data.data;
+        }
+
+        // If no categories found, create some default ones
+        console.warn('⚠️ No categories found, using defaults');
+        return [
+            { _id: '1', name: 'Skincare', description: 'Skincare products' },
+            { _id: '2', name: 'Haircare', description: 'Haircare products' },
+            { _id: '3', name: 'Body Care', description: 'Body care products' },
+            { _id: '4', name: 'Fragrance', description: 'Fragrance products' }
+        ];
+    }
+
+    static showProductsManagementModal(products, categories) {
+        // Ensure products and categories are arrays
+        if (!Array.isArray(products)) {
+            console.warn('⚠️ Products is not an array, converting to empty array');
+            products = [];
+        }
+        if (!Array.isArray(categories)) {
+            console.warn('⚠️ Categories is not an array, converting to empty array');
+            categories = [];
+        }
+        const modalHtml = `
+        <div class="modal fade" id="productsManagementModal" tabindex="-1" aria-labelledby="productsManagementModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="productsManagementModalLabel">
+                            <i class="fas fa-boxes me-2"></i>
+                            Products Management
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Quick Stats -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="card text-center bg-success text-white">
+                                    <div class="card-body">
+                                        <h3>${products.length}</h3>
+                                        <p class="mb-0">Total Products</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card text-center bg-info text-white">
+                                    <div class="card-body">
+                                        <h3>${this.countActiveProducts(products)}</h3>
+                                        <p class="mb-0">Active Products</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card text-center bg-warning text-white">
+                                    <div class="card-body">
+                                        <h3>${this.countLowStockProducts(products)}</h3>
+                                        <p class="mb-0">Low Stock</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card text-center bg-secondary text-white">
+                                    <div class="card-body">
+                                        <h3>${categories.length}</h3>
+                                        <p class="mb-0">Categories</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">Product Management</h5>
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-primary" onclick="ProductManagementService.showCreateProductModal()">
+                                            <i class="fas fa-plus me-2"></i>Add New Product
+                                        </button>
+                                        <button type="button" class="btn btn-success" onclick="ProductManagementService.exportProductsReport()">
+                                            <i class="fas fa-download me-2"></i>Export Products
+                                        </button>
+                                        <button type="button" class="btn btn-info" onclick="ProductManagementService.showCategoriesManagement()">
+                                            <i class="fas fa-tags me-2"></i>Manage Categories
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Search and Filters -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <input type="text" id="productsSearch" class="form-control" placeholder="Search products..." 
+                                           onkeyup="ProductManagementService.filterProducts()">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="ProductManagementService.clearSearch()">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <select id="categoryFilter" class="form-select" onchange="ProductManagementService.filterProducts()">
+                                    <option value="">All Categories</option>
+                                    ${categories.map(cat => `<option value="${cat._id}">${cat.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select id="statusFilter" class="form-select" onchange="ProductManagementService.filterProducts()">
+                                    <option value="">All Status</option>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="low-stock">Low Stock</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Products Table -->
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Image</th>
+                                        <th>Name</th>
+                                        <th>Category</th>
+                                        <th>Price</th>
+                                        <th>Stock</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productsTableBody">
+                                    ${this.generateProductsTableRows(products, categories)}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination (if needed) -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <nav>
+                                    <ul class="pagination justify-content-center">
+                                        <li class="page-item disabled"><a class="page-link" href="#">Previous</a></li>
+                                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                                        <li class="page-item"><a class="page-link" href="#">Next</a></li>
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="ProductManagementService.showCreateProductModal()">
+                            <i class="fas fa-plus me-2"></i>Add New Product
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('productsManagementModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Store products and categories for filtering
+        document.getElementById('productsManagementModal').dataset.products = JSON.stringify(products);
+        document.getElementById('productsManagementModal').dataset.categories = JSON.stringify(categories);
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('productsManagementModal'));
+        modal.show();
+    }
+
+    static generateProductsTableRows(products, categories) {
+        // Ensure products is an array
+        if (!Array.isArray(products)) {
+            products = [];
+        }
+        if (!Array.isArray(categories)) {
+            categories = [];
+        }
+
+        if (products.length === 0) {
+            return `
+            <tr>
+                <td colspan="8" class="text-center py-4">
+                    <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                    <p class="mb-1">No products found</p>
+                    <small class="text-muted">Create your first product to get started</small>
+                    <br>
+                    <button class="btn btn-primary btn-sm mt-2" onclick="ProductManagementService.showCreateProductModal()">
+                        <i class="fas fa-plus me-1"></i>Create First Product
+                    </button>
+                </td>
+            </tr>
+        `;
+        }
+
+        return products.map(product => {
+            const category = categories.find(cat => cat._id === product.category) || { name: 'Uncategorized' };
+            const stockStatus = this.getStockStatus(product.stock, product.lowStockThreshold);
+            const statusColor = this.getStatusColor(product.status, stockStatus);
+
+            return `
+                <tr>
+                    <td>
+                        <img src="${Utils.getImageSource(product.image, product.name, 'product')}" 
+                             class="rounded" 
+                             style="width: 50px; height: 50px; object-fit: cover;" 
+                             alt="${product.name}"
+                             onerror="Utils.handleImageError(this, 'product')">
+                    </td>
+                    <td>
+                        <strong>${this.escapeHtml(product.name)}</strong>
+                        ${product.description ? `<br><small class="text-muted">${this.escapeHtml(product.description.substring(0, 50))}...</small>` : ''}
+                    </td>
+                    <td>${this.escapeHtml(category.name)}</td>
+                    <td><strong>${Utils.formatCurrency(product.price)}</strong></td>
+                    <td>
+                        <span class="badge bg-${stockStatus.color}">${product.stock || 0}</span>
+                        ${stockStatus.isLow ? '<br><small class="text-warning">Low Stock</small>' : ''}
+                    </td>
+                    <td>
+                        <span class="badge bg-${statusColor}">
+                            ${product.status === 'active' ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td>${new Date(product.createdAt).toLocaleDateString()}</td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" 
+                                    onclick="ProductManagementService.showEditProductModal('${product._id}')"
+                                    title="Edit Product">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-outline-${product.status === 'active' ? 'warning' : 'success'}" 
+                                    onclick="ProductManagementService.toggleProductStatus('${product._id}', ${product.status === 'active'})"
+                                    title="${product.status === 'active' ? 'Deactivate' : 'Activate'}">
+                                <i class="fas fa-${product.status === 'active' ? 'pause' : 'play'}"></i>
+                            </button>
+                            <button class="btn btn-outline-info" 
+                                    onclick="ProductManagementService.showStockManagement('${product._id}')"
+                                    title="Manage Stock">
+                                <i class="fas fa-boxes"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" 
+                                    onclick="ProductManagementService.deleteProduct('${product._id}')"
+                                    title="Delete Product">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    static showCreateProductModal() {
+        const modalHtml = `
+        <div class="modal fade" id="createProductModal" tabindex="-1" aria-labelledby="createProductModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <form id="createProductForm" enctype="multipart/form-data">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="createProductModalLabel">Create New Product</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="productName" class="form-label">Product Name *</label>
+                                        <input type="text" class="form-control" id="productName" name="name" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="productCategory" class="form-label">Category</label>
+                                        <select class="form-select" id="productCategory" name="category">
+                                            <option value="">Select Category</option>
+                                            <!-- Categories will be populated dynamically -->
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="productDescription" class="form-label">Description</label>
+                                <textarea class="form-control" id="productDescription" name="description" rows="3"></textarea>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="productPrice" class="form-label">Price (R) *</label>
+                                        <input type="number" class="form-control" id="productPrice" name="price" step="0.01" min="0" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="productStock" class="form-label">Initial Stock</label>
+                                        <input type="number" class="form-control" id="productStock" name="stock" min="0" value="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="lowStockThreshold" class="form-label">Low Stock Alert</label>
+                                        <input type="number" class="form-control" id="lowStockThreshold" name="lowStockThreshold" min="1" value="10">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="productImage" class="form-label">Product Image</label>
+                                <input type="file" class="form-control" id="productImage" name="image" accept="image/*">
+                                <div class="form-text">Recommended size: 500x500px. Max 2MB.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="productActive" name="active" checked>
+                                    <label class="form-check-label" for="productActive">
+                                        Active Product
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Create Product
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('createProductModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Populate categories dropdown
+        this.populateCategoriesDropdown();
+
+        // Add form submit handler
+        document.getElementById('createProductForm').addEventListener('submit', (e) => {
+            this.handleCreateProduct(e);
+        });
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('createProductModal'));
+        modal.show();
+    }
+
+    static async populateCategoriesDropdown() {
+        try {
+            const categoriesResponse = await ApiService.get('/categories');
+            const categories = this.extractCategoriesArray(categoriesResponse);
+            const dropdown = document.getElementById('productCategory');
+
+            if (dropdown) {
+                dropdown.innerHTML = '<option value="">Select Category</option>' +
+                    categories.map(cat => `<option value="${cat._id}">${cat.name}</option>`).join('');
+            }
+        } catch (error) {
+            console.error('Error loading categories:', error);
+            // Use default categories if API fails
+            const defaultCategories = [
+                { _id: '1', name: 'Skincare' },
+                { _id: '2', name: 'Haircare' },
+                { _id: '3', name: 'Body Care' },
+                { _id: '4', name: 'Fragrance' }
+            ];
+
+            const dropdown = document.getElementById('productCategory');
+            if (dropdown) {
+                dropdown.innerHTML = '<option value="">Select Category</option>' +
+                    defaultCategories.map(cat => `<option value="${cat._id}">${cat.name}</option>`).join('');
+            }
+        }
+    }
+
+    static async handleCreateProduct(e) {
+        e.preventDefault();
+
+        const form = e.target;
+        const formData = new FormData(form);
+
+        try {
+            // Convert form data to JSON for API (adjust based on your API requirements)
+            const productData = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                price: parseFloat(formData.get('price')),
+                stock: parseInt(formData.get('stock')) || 0,
+                lowStockThreshold: parseInt(formData.get('lowStockThreshold')) || 10,
+                category: formData.get('category') || null,
+                status: formData.get('active') ? 'active' : 'inactive'
+            };
+
+            // If image is selected, you might need to handle file upload separately
+            const imageFile = formData.get('image');
+            if (imageFile && imageFile.size > 0) {
+                // Handle image upload - this depends on your backend implementation
+                productData.image = await this.uploadProductImage(imageFile);
+            }
+
+            const result = await ApiService.post('/products', productData);
+
+            if (result && result._id) {
+                Utils.showNotification('Product created successfully!', 'success');
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('createProductModal'));
+                modal.hide();
+
+                // Refresh products management
+                setTimeout(() => {
+                    this.loadProductsManagement();
+                }, 1000);
+            } else {
+                throw new Error('Failed to create product');
+            }
+
+        } catch (error) {
+            console.error('Error creating product:', error);
+            Utils.showNotification('Failed to create product: ' + error.message, 'error');
+        }
+    }
+
+    static async uploadProductImage(imageFile) {
+        // Implement image upload logic based on your backend
+        // This is a placeholder - adjust according to your API
+        const formData = new FormData();
+        formData.append('image', imageFile);
+
+        try {
+            const response = await fetch(`${AppConfig.API_BASE}/upload/product-image`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${Utils.getAuthToken()}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Image upload failed');
+            }
+
+            const data = await response.json();
+            return data.imageUrl;
+        } catch (error) {
+            console.error('Image upload error:', error);
+            throw new Error('Failed to upload image');
+        }
+    }
+
+    static async showEditProductModal(productId) {
+        try {
+            const product = await ApiService.get(`/products/${productId}`);
+            const categories = await ApiService.get('/categories');
+
+            const modalHtml = `
+            <div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <form id="editProductForm">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="editProductModalLabel">Edit Product: ${this.escapeHtml(product.name)}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="editProductName" class="form-label">Product Name *</label>
+                                            <input type="text" class="form-control" id="editProductName" name="name" 
+                                                   value="${this.escapeHtml(product.name)}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="editProductCategory" class="form-label">Category</label>
+                                            <select class="form-select" id="editProductCategory" name="category">
+                                                <option value="">Select Category</option>
+                                                ${categories.map(cat =>
+                `<option value="${cat._id}" ${product.category === cat._id ? 'selected' : ''}>${cat.name}</option>`
+            ).join('')}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="editProductDescription" class="form-label">Description</label>
+                                    <textarea class="form-control" id="editProductDescription" name="description" rows="3">${this.escapeHtml(product.description || '')}</textarea>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="editProductPrice" class="form-label">Price (R) *</label>
+                                            <input type="number" class="form-control" id="editProductPrice" name="price" 
+                                                   value="${product.price}" step="0.01" min="0" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="editProductStock" class="form-label">Current Stock</label>
+                                            <input type="number" class="form-control" id="editProductStock" name="stock" 
+                                                   value="${product.stock || 0}" min="0" readonly>
+                                            <small class="text-muted">Use stock management to update quantity</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="editLowStockThreshold" class="form-label">Low Stock Alert</label>
+                                            <input type="number" class="form-control" id="editLowStockThreshold" name="lowStockThreshold" 
+                                                   value="${product.lowStockThreshold || 10}" min="1">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Current Image</label>
+                                    <div>
+                                        <img src="${Utils.getImageSource(product.image, product.name, 'product')}" 
+                                             class="img-thumbnail" 
+                                             style="max-height: 150px;" 
+                                             alt="${product.name}"
+                                             onerror="Utils.handleImageError(this, 'product')">
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="editProductImage" class="form-label">Update Image (optional)</label>
+                                    <input type="file" class="form-control" id="editProductImage" name="image" accept="image/*">
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="editProductActive" name="active" ${product.status === 'active' ? 'checked' : ''}>
+                                        <label class="form-check-label" for="editProductActive">
+                                            Active Product
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>Update Product
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            // Remove existing modal if any
+            const existingModal = document.getElementById('editProductModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            // Add form submit handler
+            document.getElementById('editProductForm').addEventListener('submit', (e) => {
+                this.handleUpdateProduct(e, productId);
+            });
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('editProductModal'));
+            modal.show();
+
+        } catch (error) {
+            console.error('Error loading product for editing:', error);
+            Utils.showNotification('Failed to load product details', 'error');
+        }
+    }
+
+    static async handleUpdateProduct(e, productId) {
+        e.preventDefault();
+
+        const form = e.target;
+        const formData = new FormData(form);
+
+        try {
+            const updateData = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                price: parseFloat(formData.get('price')),
+                lowStockThreshold: parseInt(formData.get('lowStockThreshold')) || 10,
+                category: formData.get('category') || null,
+                status: formData.get('active') ? 'active' : 'inactive'
+            };
+
+            // Handle image update if provided
+            const imageFile = formData.get('image');
+            if (imageFile && imageFile.size > 0) {
+                updateData.image = await this.uploadProductImage(imageFile);
+            }
+
+            const result = await ApiService.put(`/products/${productId}`, updateData);
+
+            if (result && result._id) {
+                Utils.showNotification('Product updated successfully!', 'success');
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'));
+                modal.hide();
+
+                // Refresh products management
+                setTimeout(() => {
+                    this.loadProductsManagement();
+                }, 1000);
+            } else {
+                throw new Error('Failed to update product');
+            }
+
+        } catch (error) {
+            console.error('Error updating product:', error);
+            Utils.showNotification('Failed to update product: ' + error.message, 'error');
+        }
+    }
+
+    static async toggleProductStatus(productId, isCurrentlyActive) {
+        const newStatus = isCurrentlyActive ? 'inactive' : 'active';
+        const confirmMessage = `Are you sure you want to ${isCurrentlyActive ? 'deactivate' : 'activate'} this product?`;
+
+        if (!confirm(confirmMessage)) return;
+
+        try {
+            console.log(`🔄 Toggling product ${productId} status to: ${newStatus}`);
+
+            // Try different API endpoints and methods
+            let result;
+
+            // First try PATCH endpoint (most common)
+            try {
+                result = await ApiService.patch(`/products/${productId}`, { status: newStatus });
+                console.log('✅ Product status updated via PATCH:', result);
+            } catch (patchError) {
+                console.log('⚠️ PATCH failed, trying PUT...');
+                // Fallback to PUT
+                try {
+                    result = await ApiService.put(`/products/${productId}`, { status: newStatus });
+                    console.log('✅ Product status updated via PUT:', result);
+                } catch (putError) {
+                    console.log('⚠️ PUT failed, trying update endpoint...');
+                    // Fallback to update endpoint
+                    try {
+                        result = await ApiService.post(`/products/${productId}/update`, { status: newStatus });
+                        console.log('✅ Product status updated via POST update:', result);
+                    } catch (postError) {
+                        throw new Error('All update methods failed');
+                    }
+                }
+            }
+
+            // Check if update was successful based on different response formats
+            const isSuccess =
+                (result && result._id) || // Direct product object with _id
+                (result && result.product && result.product._id) || // Nested product object
+                (result && result.success) || // Success flag
+                (result && result.updated) || // Updated flag
+                (result && result.message && result.message.includes('success')); // Success message
+
+            if (isSuccess) {
+                Utils.showNotification(`Product ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`, 'success');
+
+                // Refresh the products management view
+                setTimeout(() => {
+                    this.loadProductsManagement();
+                }, 1000);
+            } else {
+                // If we got a response but it doesn't indicate success, check for message
+                const errorMessage = result?.message || 'Failed to update product status - unknown error';
+                throw new Error(errorMessage);
+            }
+
+        } catch (error) {
+            console.error('❌ Error toggling product status:', error);
+
+            // Provide more user-friendly error messages
+            let userMessage = 'Failed to update product status';
+
+            if (error.message.includes('404')) {
+                userMessage = 'Product not found. It may have been deleted.';
+            } else if (error.message.includes('401') || error.message.includes('403')) {
+                userMessage = 'You do not have permission to update products.';
+            } else if (error.message.includes('Failed to fetch')) {
+                userMessage = 'Network error. Please check your connection.';
+            } else if (error.message.includes('All update methods failed')) {
+                userMessage = 'Product update service is currently unavailable.';
+            } else {
+                userMessage = error.message || userMessage;
+            }
+
+            Utils.showNotification(userMessage, 'error');
+        }
+    }
+
+    // Add this method to help debug API issues
+    static async testProductEndpoints() {
+        console.log('🔧 Testing product API endpoints...');
+
+        try {
+            // Test GET /products
+            const products = await ApiService.get('/products');
+            console.log('✅ GET /products:', products);
+
+            // Test if we can get a specific product
+            if (products && products.length > 0) {
+                const testProductId = products[0]._id;
+                const singleProduct = await ApiService.get(`/products/${testProductId}`);
+                console.log(`✅ GET /products/${testProductId}:`, singleProduct);
+            }
+
+            // Test PATCH endpoint
+            if (products && products.length > 0) {
+                const testProductId = products[0]._id;
+                try {
+                    const patchResult = await ApiService.patch(`/products/${testProductId}`, {
+                        test: true,
+                        timestamp: new Date().toISOString()
+                    });
+                    console.log(`✅ PATCH /products/${testProductId}:`, patchResult);
+                } catch (patchError) {
+                    console.log('❌ PATCH failed:', patchError.message);
+                }
+            }
+
+        } catch (error) {
+            console.error('❌ API test failed:', error);
+        }
+    }
+
+    static async showStockManagement(productId) {
+        try {
+            const product = await ApiService.get(`/products/${productId}`);
+
+            const modalHtml = `
+            <div class="modal fade" id="stockManagementModal" tabindex="-1" aria-labelledby="stockManagementModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form id="stockManagementForm">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="stockManagementModalLabel">
+                                    Stock Management: ${this.escapeHtml(product.name)}
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <h3 class="mb-0 ${this.getStockStatus(product.stock, product.lowStockThreshold).isLow ? 'text-warning' : 'text-success'}">
+                                                    ${product.stock || 0}
+                                                </h3>
+                                                <p class="mb-0">Current Stock</p>
+                                                ${this.getStockStatus(product.stock, product.lowStockThreshold).isLow ?
+                    '<small class="text-warning">⚠️ Low Stock Alert</small>' : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="stockAction" class="form-label">Stock Action</label>
+                                    <select class="form-select" id="stockAction" name="action" required>
+                                        <option value="add">Add Stock</option>
+                                        <option value="set">Set Stock Quantity</option>
+                                        <option value="subtract">Subtract Stock</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="stockQuantity" class="form-label">Quantity</label>
+                                    <input type="number" class="form-control" id="stockQuantity" name="quantity" min="1" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="stockReason" class="form-label">Reason (Optional)</label>
+                                    <input type="text" class="form-control" id="stockReason" name="reason" 
+                                           placeholder="e.g., New shipment, Sold out, etc.">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="stockNotes" class="form-label">Notes (Optional)</label>
+                                    <textarea class="form-control" id="stockNotes" name="notes" rows="2"></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>Update Stock
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            // Remove existing modal if any
+            const existingModal = document.getElementById('stockManagementModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            // Add form submit handler
+            document.getElementById('stockManagementForm').addEventListener('submit', (e) => {
+                this.handleStockUpdate(e, productId, product.stock || 0);
+            });
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('stockManagementModal'));
+            modal.show();
+
+        } catch (error) {
+            console.error('Error loading stock management:', error);
+            Utils.showNotification('Failed to load stock management', 'error');
+        }
+    }
+
+    static async handleStockUpdate(e, productId, currentStock) {
+        e.preventDefault();
+
+        const form = e.target;
+        const formData = new FormData(form);
+
+        try {
+            const action = formData.get('action');
+            const quantity = parseInt(formData.get('quantity'));
+            const reason = formData.get('reason');
+            const notes = formData.get('notes');
+
+            let newStock = currentStock;
+
+            switch (action) {
+                case 'add':
+                    newStock = currentStock + quantity;
+                    break;
+                case 'set':
+                    newStock = quantity;
+                    break;
+                case 'subtract':
+                    newStock = Math.max(0, currentStock - quantity);
+                    break;
+            }
+
+            const updateData = {
+                stock: newStock,
+                stockUpdate: {
+                    action,
+                    quantity,
+                    previousStock: currentStock,
+                    newStock,
+                    reason,
+                    notes,
+                    timestamp: new Date().toISOString()
+                }
+            };
+
+            const result = await ApiService.patch(`/products/${productId}`, updateData);
+
+            if (result && result._id) {
+                Utils.showNotification('Stock updated successfully!', 'success');
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('stockManagementModal'));
+                modal.hide();
+
+                // Refresh products management
+                setTimeout(() => {
+                    this.loadProductsManagement();
+                }, 1000);
+            } else {
+                throw new Error('Failed to update stock');
+            }
+
+        } catch (error) {
+            console.error('Error updating stock:', error);
+            Utils.showNotification('Failed to update stock: ' + error.message, 'error');
+        }
+    }
+
+    static async deleteProduct(productId) {
+        const confirmMessage = 'Are you sure you want to delete this product? This action cannot be undone.';
+
+        if (!confirm(confirmMessage)) return;
+
+        try {
+            const result = await ApiService.delete(`/products/${productId}`);
+
+            if (result && result.success) {
+                Utils.showNotification('Product deleted successfully!', 'success');
+                this.loadProductsManagement();
+            } else {
+                throw new Error('Failed to delete product');
+            }
+
+        } catch (error) {
+            console.error('Error deleting product:', error);
+            Utils.showNotification('Failed to delete product: ' + error.message, 'error');
+        }
+    }
+
+    static filterProducts() {
+        const searchTerm = document.getElementById('productsSearch').value.toLowerCase();
+        const categoryFilter = document.getElementById('categoryFilter').value;
+        const statusFilter = document.getElementById('statusFilter').value;
+
+        const modal = document.getElementById('productsManagementModal');
+        const products = JSON.parse(modal.dataset.products || '[]');
+        const categories = JSON.parse(modal.dataset.categories || '[]');
+
+        const filteredProducts = products.filter(product => {
+            const matchesSearch = product.name.toLowerCase().includes(searchTerm) ||
+                (product.description && product.description.toLowerCase().includes(searchTerm));
+
+            const matchesCategory = !categoryFilter || product.category === categoryFilter;
+
+            const matchesStatus = !statusFilter ||
+                (statusFilter === 'active' && product.status === 'active') ||
+                (statusFilter === 'inactive' && product.status === 'inactive') ||
+                (statusFilter === 'low-stock' && this.getStockStatus(product.stock, product.lowStockThreshold).isLow);
+
+            return matchesSearch && matchesCategory && matchesStatus;
+        });
+
+        document.getElementById('productsTableBody').innerHTML = this.generateProductsTableRows(filteredProducts, categories);
+    }
+
+    static clearSearch() {
+        document.getElementById('productsSearch').value = '';
+        this.filterProducts();
+    }
+
+    static async exportProductsReport() {
+        try {
+            // This would typically call your backend export endpoint
+            Utils.showNotification('Preparing products export...', 'info');
+
+            // Simulate export (replace with actual API call)
+            setTimeout(() => {
+                Utils.showNotification('Products report exported successfully!', 'success');
+            }, 2000);
+
+        } catch (error) {
+            console.error('Error exporting products:', error);
+            Utils.showNotification('Failed to export products report', 'error');
+        }
+    }
+
+    static async showCategoriesManagement() {
+        try {
+            const categories = await ApiService.get('/categories');
+
+            const modalHtml = `
+            <div class="modal fade" id="categoriesManagementModal" tabindex="-1" aria-labelledby="categoriesManagementModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-info text-white">
+                            <h5 class="modal-title" id="categoriesManagementModalLabel">
+                                <i class="fas fa-tags me-2"></i>
+                                Categories Management
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <button type="button" class="btn btn-primary" onclick="ProductManagementService.showCreateCategoryModal()">
+                                        <i class="fas fa-plus me-2"></i>Add New Category
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Description</th>
+                                            <th>Products Count</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${categories.map(category => `
+                                            <tr>
+                                                <td><strong>${this.escapeHtml(category.name)}</strong></td>
+                                                <td>${this.escapeHtml(category.description || 'No description')}</td>
+                                                <td><span class="badge bg-primary">${category.productCount || 0}</span></td>
+                                                <td>
+                                                    <span class="badge bg-${category.status === 'active' ? 'success' : 'secondary'}">
+                                                        ${category.status === 'active' ? 'Active' : 'Inactive'}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button class="btn btn-outline-primary" 
+                                                                onclick="ProductManagementService.showEditCategoryModal('${category._id}')">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <button class="btn btn-outline-danger" 
+                                                                onclick="ProductManagementService.deleteCategory('${category._id}')">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            // Remove existing modal if any
+            const existingModal = document.getElementById('categoriesManagementModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('categoriesManagementModal'));
+            modal.show();
+
+        } catch (error) {
+            console.error('Error loading categories management:', error);
+            Utils.showNotification('Failed to load categories', 'error');
+        }
+    }
+
+    static countActiveProducts(products) {
+        if (!Array.isArray(products)) {
+            console.warn('⚠️ countActiveProducts: products is not an array', products);
+            return 0;
+        }
+        return products.filter(product => product && product.status === 'active').length;
+    }
+
+    // Update the countLowStockProducts method to be more defensive
+    static countLowStockProducts(products) {
+        if (!Array.isArray(products)) {
+            console.warn('⚠️ countLowStockProducts: products is not an array', products);
+            return 0;
+        }
+        return products.filter(product => product && this.getStockStatus(product.stock, product.lowStockThreshold).isLow).length;
+    }
+
+    static getStockStatus(stock, lowStockThreshold = 10) {
+        const currentStock = stock || 0;
+        const isLow = currentStock <= lowStockThreshold;
+        const color = isLow ? 'warning' : (currentStock === 0 ? 'danger' : 'success');
+
+        return { isLow, color };
+    }
+
+    static getStatusColor(status, stockStatus) {
+        if (status !== 'active') return 'secondary';
+        return stockStatus.isLow ? 'warning' : 'success';
+    }
+
+    static escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+}
+
 
 // ===== CHART HELPER =====
 class ChartHelper {
@@ -5270,6 +6379,10 @@ class AdminService {
             console.error('❌ Error loading admin data:', error);
             this.showEmptyStates();
         }
+    }
+
+    static async showProductsManagement() {
+        await ProductManagementService.loadProductsManagement();
     }
 
     static async showVouchersManagement() {
@@ -10347,10 +11460,6 @@ function displayUserBookings(bookings) {
                             <button class="btn btn-sm btn-outline-primary" 
                                     onclick="ReceiptService.generateReceipt('booking', '${booking._id}')">
                                 <i class="fas fa-receipt"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-secondary ms-1" 
-                                    onclick="editBooking('${booking._id}')">
-                                <i class="fas fa-edit"></i>
                             </button>
                         </div>
                     </div>

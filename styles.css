@@ -923,13 +923,6 @@ footer {
     align-items: center;
 }
 
-.premium-badge {
-    border: 2px solid #ffc107;
-    border-radius: 10px;
-    padding: 15px;
-    background: rgba(255, 193, 7, 0.1);
-}
-
 /* Add to your CSS file */
 .bg-gold {
     background: linear-gradient(45deg, #FFD700, #FFA500) !important;
@@ -1069,12 +1062,6 @@ body .modal-backdrop.show:not(:first-of-type) {
 }
 
 /* Premium Badges */
-.premium-badge .badge {
-    font-size: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-}
-
 .premium-badges .badge {
     font-size: 0.75rem;
     margin-bottom: 5px;
@@ -1293,9 +1280,6 @@ body .modal-backdrop.show:not(:first-of-type) {
         font-size: 1rem !important;
     }
     
-    .premium-badge .badge {
-        font-size: 0.7rem;
-    }
     
     .trust-indicators {
         padding: 10px;
@@ -1364,7 +1348,6 @@ body .modal-backdrop.show:not(:first-of-type) {
 /* ===== FIX FOR EXISTING ISSUES ===== */
 
 /* Ensure all marketing elements are visible */
-.premium-badge,
 .trust-indicators,
 .brands-showcase,
 .premium-guarantee,
@@ -1414,7 +1397,6 @@ body .modal-backdrop.show:not(:first-of-type) {
 
 /* ===== PRINT ENHANCEMENTS ===== */
 @media print {
-    .premium-badge,
     .trust-indicators,
     .premium-feature .btn {
         display: none !important;
@@ -1429,7 +1411,6 @@ body .modal-backdrop.show:not(:first-of-type) {
 /* ===== DARK MODE PREVENTION (ENHANCED) ===== */
 /* Force light mode on all new elements */
 .trust-bar,
-.premium-badge,
 .trust-indicators,
 .premium-feature,
 .brands-showcase,

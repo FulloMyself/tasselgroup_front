@@ -102,11 +102,9 @@
             <!-- Home section content remains exactly the same as before -->
             <div class="hero-section">
                 <div class="container">
-                    <div class="premium-badge mb-3">
-                        <span class="badge bg-warning text-dark px-3 py-2">
-                            <i class="fas fa-crown me-2"></i>Gauteng's Premier Beauty Destination
-                        </span>
-                    </div>
+                    <span class="badge bg-warning text-dark px-3 py-2">
+                        <i class="fas fa-crown me-2"></i>Gauteng's Premier Beauty Destination
+                    </span>
                     <h1 class="display-4">Experience Luxury Wellness at Tassel Group</h1>
                     <p class="lead">Where premium beauty meets exceptional service. Join 10,000+ satisfied clients in
                         our luxury wellness journey.</p>
@@ -362,48 +360,55 @@
                                             <span id="cartTotalAmount" class="h5 text-primary">R 0.00</span>
                                         </div>
                                     </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label class="form-check">
-                                                    <input class="form-check-input" type="checkbox" value="" id="cartDeliveryCheckbox">
-                                                    <span class="form-check-label">Delivery (Add R 300.00)</span>
-                                                </label>
-                                            </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-check">
+                                                <input class="form-check-input" type="checkbox" value=""
+                                                    id="cartDeliveryCheckbox">
+                                                <span class="form-check-label">Delivery (Add R 300.00)</span>
+                                            </label>
+                                        </div>
 
-                                            <div class="mb-3">
-                                                <label for="cartVoucherInput" class="form-label">Voucher Code</label>
-                                                <div class="input-group">
-                                                    <input type="text" id="cartVoucherInput" class="form-control" placeholder="Enter voucher code">
-                                                    <button class="btn btn-outline-secondary" type="button" id="applyVoucherBtn">Apply</button>
+                                        <div class="mb-3">
+                                            <label for="cartVoucherInput" class="form-label">Voucher Code</label>
+                                            <div class="input-group">
+                                                <input type="text" id="cartVoucherInput" class="form-control"
+                                                    placeholder="Enter voucher code">
+                                                <button class="btn btn-outline-secondary" type="button"
+                                                    id="applyVoucherBtn">Apply</button>
+                                            </div>
+                                            <div id="cartVoucherMessage" class="form-text text-muted mt-1"></div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Payment Method</label>
+                                            <div id="cartPaymentMethods">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="cartPayment"
+                                                        id="paymentPayfast" value="payfast" checked>
+                                                    <label class="form-check-label" for="paymentPayfast">Payfast
+                                                        (Online)</label>
                                                 </div>
-                                                <div id="cartVoucherMessage" class="form-text text-muted mt-1"></div>
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <label class="form-label">Payment Method</label>
-                                                <div id="cartPaymentMethods">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="radio" name="cartPayment" id="paymentPayfast" value="payfast" checked>
-                                                        <label class="form-check-label" for="paymentPayfast">Payfast (Online)</label>
-                                                    </div>
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="radio" name="cartPayment" id="paymentEmail" value="email">
-                                                        <label class="form-check-label" for="paymentEmail">Email Order (We will email you an invoice)</label>
-                                                    </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="cartPayment"
+                                                        id="paymentEmail" value="email">
+                                                    <label class="form-check-label" for="paymentEmail">Email Order (We
+                                                        will email you an invoice)</label>
                                                 </div>
-                                            </div>
-
-                                            <div class="d-grid gap-2">
-                                                <button class="btn btn-primary btn-lg" id="checkoutBtn"
-                                                    onclick="CartService.proceedToCheckout()" disabled>
-                                                    <i class="fas fa-credit-card me-2"></i>Proceed to Checkout
-                                                </button>
-                                                <button class="btn btn-outline-danger" id="clearCartBtn"
-                                                    onclick="CartService.clearCart()" disabled>
-                                                    <i class="fas fa-trash me-2"></i>Clear Cart
-                                                </button>
                                             </div>
                                         </div>
+
+                                        <div class="d-grid gap-2">
+                                            <button class="btn btn-primary btn-lg" id="checkoutBtn"
+                                                onclick="CartService.proceedToCheckout()" disabled>
+                                                <i class="fas fa-credit-card me-2"></i>Proceed to Checkout
+                                            </button>
+                                            <button class="btn btn-outline-danger" id="clearCartBtn"
+                                                onclick="CartService.clearCart()" disabled>
+                                                <i class="fas fa-trash me-2"></i>Clear Cart
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
 
 
@@ -1340,8 +1345,10 @@
                                 </button>
                             </div>
                             <div class="col-md-4">
-                                <button class="btn btn-primary w-100 mb-2" onclick="showAdminModal('addProduct')">
-                                    <i class="fas fa-plus me-2"></i>Add Luxury Product
+                                <button class="btn btn-primary w-100 mb-2"
+                                    onclick="ProductManagementService.showAdminModal('productsManagement')"
+                                    data-admin-only="true">
+                                    <i class="fas fa-boxes me-2"></i>Manage Products
                                 </button>
                             </div>
                             <div class="col-md-4">
@@ -1780,9 +1787,10 @@
                     <div class="mb-3">
                         <label for="userSearchInput" class="form-label">Search by User Email or Name</label>
                         <div class="input-group">
-                                <input type="text" class="form-control" id="userSearchInput"
+                            <input type="text" class="form-control" id="userSearchInput"
                                 placeholder="Enter email or name...">
-                            <button class="btn btn-outline-secondary" type="button" id="userSearchBtn" onclick="debouncedUserSearch()">
+                            <button class="btn btn-outline-secondary" type="button" id="userSearchBtn"
+                                onclick="debouncedUserSearch()">
                                 <i class="fas fa-search"></i>
                             </button>
                         </div>
@@ -1791,7 +1799,7 @@
                         <!-- Search results will appear here -->
                     </div>
                 </div>
-                    <div class="modal-footer">
+                <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <button type="button" class="btn btn-primary" onclick="searchUsers()">Search</button>
                 </div>

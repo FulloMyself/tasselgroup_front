@@ -1022,8 +1022,16 @@ if (typeof window !== 'undefined' && !window.Utils) window.Utils = Utils;
 class AuthService {
     static async login(email, password) {
         try {
-            if (!email || !password) {
-                throw new Error('Please enter both email and password');
+            // Trim and validate inputs
+            email = email?.trim() || '';
+            password = password?.trim() || '';
+            
+            if (!email) {
+                throw new Error('Please enter your email address');
+            }
+            
+            if (!password) {
+                throw new Error('Please enter your password');
             }
 
             const data = await ApiService.post('/auth/login', { email, password });
@@ -10095,21 +10103,44 @@ function printReceiptsSummary() {
 // ===== EVENT HANDLERS =====
 async function handleLogin(e) {
     e.preventDefault();
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    await AuthService.login(email, password);
+    const email = document.getElementById('loginEmail')?.value?.trim();
+    const password = document.getElementById('loginPassword')?.value?.trim();
+    
+    if (!email || !password) {
+        Utils.showNotification('Please enter both email and password', 'error');
+        return;
+    }
+    
+    try {
+        await AuthService.login(email, password);
+    } catch (error) {
+        console.error('Login error:', error);
+        // Error notification is already shown by AuthService
+    }
 }
 
 async function handleRegister(e) {
     e.preventDefault();
     const userData = {
-        name: document.getElementById('registerName').value.trim(),
-        email: document.getElementById('registerEmail').value.trim(),
-        password: document.getElementById('registerPassword').value,
-        phone: document.getElementById('registerPhone').value.trim(),
-        address: document.getElementById('registerAddress').value.trim()
+        name: document.getElementById('registerName')?.value?.trim(),
+        email: document.getElementById('registerEmail')?.value?.trim(),
+        password: document.getElementById('registerPassword')?.value?.trim(),
+        phone: document.getElementById('registerPhone')?.value?.trim(),
+        address: document.getElementById('registerAddress')?.value?.trim()
     };
-    await AuthService.register(userData);
+    
+    // Validate all fields are provided
+    if (!userData.name || !userData.email || !userData.password || !userData.phone || !userData.address) {
+        Utils.showNotification('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    try {
+        await AuthService.register(userData);
+    } catch (error) {
+        console.error('Register error:', error);
+        // Error notification is already shown by AuthService
+    }
 }
 
 function handlePaymentReturn() {

@@ -1,7 +1,7 @@
 // Enhanced configuration with fallback
 const getApiBaseUrl = () => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return 'http://localhost:5000/api';
+        return 'http://localhost:10000/api';
     } else {
         // Try the correct URL with /api
         return 'https://tasselgroup-back.onrender.com/api';

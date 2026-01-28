@@ -538,21 +538,25 @@ class ApiService {
         }
 
         const controller = new AbortController();
-        
-        // FIX 1: INCREASE TIMEOUT FOR PAYMENT ENDPOINTS
-        const isPaymentEndpoint = endpoint.includes('/payment/') || 
-                                 endpoint.includes('/manual-order') || 
-                                 endpoint.includes('/checkout');
-        const timeoutDuration = isPaymentEndpoint ? 45000 : 15000; // 45s for payments, 15s for others
-        const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
-        config.signal = controller.signal;
+
+        const isPaymentEndpoint = endpoint.includes('/payment/') ||
+            endpoint.includes('/manual-order') ||
+            endpoint.includes('/checkout') ||
+            endpoint.includes('/email/'); // Add email endpoints
+
+        // Increase timeout significantly for Render's cold starts
+        const timeoutDuration = isPaymentEndpoint ? 90000 : 15000; // 90s for payments/emails, 15s for others
+        const timeoutId = setTimeout(() => {
+            if (DEBUG) console.log(`⏰ Timeout for ${endpoint} after ${timeoutDuration}ms`);
+            controller.abort();
+        }, timeoutDuration);
 
         try {
             if (DEBUG) console.log(`📡 Making API call to: ${AppConfig.API_BASE}${endpoint}`, {
                 timeout: timeoutDuration,
                 isPayment: isPaymentEndpoint
             });
-            
+
             const response = await fetch(`${AppConfig.API_BASE}${endpoint}`, config);
             clearTimeout(timeoutId);
 
@@ -575,23 +579,23 @@ class ApiService {
                     } catch (e) {
                         console.warn('⚠️ Error clearing auth token', e);
                     }
-                    try { 
-                        Utils.showNotification('Session expired. Please log in again.', 'warning'); 
+                    try {
+                        Utils.showNotification('Session expired. Please log in again.', 'warning');
                     } catch (e) { }
-                    try { 
-                        if (typeof UIHelper !== 'undefined' && typeof UIHelper.showSection === 'function') 
-                            UIHelper.showSection('login'); 
+                    try {
+                        if (typeof UIHelper !== 'undefined' && typeof UIHelper.showSection === 'function')
+                            UIHelper.showSection('login');
                     } catch (e) { }
                 }
 
                 if (response.status === 500 || response.status === 404) {
                     console.warn(`Server error (${response.status}) for ${endpoint}, using fallback`);
-                    
+
                     // FIX 2: FOR PAYMENT ENDPOINTS, DON'T RETURN FALLBACK - THROW ERROR
                     if (isPaymentEndpoint) {
                         throw new Error(`Payment service error: ${errorMessage}`);
                     }
-                    
+
                     return this.getFallbackResponse(endpoint);
                 }
 
@@ -614,7 +618,7 @@ class ApiService {
             });
 
             const fallback = this.getFallbackResponse(endpoint);
-            
+
             // FIX 3: BETTER ERROR MESSAGES FOR TIMEOUTS
             if (error.name === 'AbortError') {
                 if (isPaymentEndpoint) {
@@ -623,25 +627,25 @@ class ApiService {
                 } else {
                     throw new Error('Request timeout. Please check your connection and try again.');
                 }
-            } 
-            
+            }
+
             // FIX 4: NETWORK ERRORS
             else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
                 throw new Error('Cannot connect to server. Please check your internet connection.');
             }
-            
+
             // FIX 5: FOR PAYMENT ENDPOINTS, NEVER RETURN FALLBACK - ALWAYS THROW
             else if (isPaymentEndpoint) {
                 // Re-throw payment errors with context
                 throw new Error(`Payment failed: ${error.message}`);
             }
-            
+
             // FIX 6: RETURN FALLBACK ONLY FOR NON-CRITICAL ENDPOINTS
             else if (fallback !== undefined) {
                 console.log(`⚠️ Using fallback for ${endpoint}`);
                 return fallback;
             }
-            
+
             // Default: re-throw the error
             throw error;
         }
@@ -667,16 +671,16 @@ class ApiService {
             }
 
             const data = await response.json();
-            
+
             // Store new tokens
             localStorage.setItem('token', data.token);
             if (data.refreshToken) {
                 localStorage.setItem('refreshToken', data.refreshToken);
             }
-            
+
             console.log('✅ Token refreshed successfully');
             return data.token;
-            
+
         } catch (error) {
             console.error('❌ Token refresh failed:', error);
             // Clear all auth data on refresh failure
@@ -684,13 +688,13 @@ class ApiService {
             localStorage.removeItem('refreshToken');
             localStorage.removeItem('currentUser');
             AppState.currentUser = null;
-            
+
             // Show notification and redirect to login
             Utils.showNotification('Session expired. Please log in again.', 'warning');
             if (typeof UIHelper !== 'undefined' && UIHelper.showSection) {
                 UIHelper.showSection('login');
             }
-            
+
             throw error;
         }
     }
@@ -701,25 +705,25 @@ class ApiService {
             const response = await fetch(`${AppConfig.API_BASE}/health`, {
                 signal: AbortSignal.timeout(5000)
             });
-            
+
             if (response.ok) {
                 const data = await response.json();
-                return { 
-                    healthy: true, 
+                return {
+                    healthy: true,
                     data,
                     timestamp: new Date().toISOString()
                 };
             }
-            return { 
-                healthy: false, 
+            return {
+                healthy: false,
                 status: response.status,
                 timestamp: new Date().toISOString()
             };
-            
+
         } catch (error) {
             console.warn('⚠️ Health check failed:', error.message);
-            return { 
-                healthy: false, 
+            return {
+                healthy: false,
                 error: error.message,
                 timestamp: new Date().toISOString()
             };
@@ -772,7 +776,7 @@ class ApiService {
     // FIX 9: ADD RETRY LOGIC FOR CRITICAL ENDPOINTS
     static async retryApiCall(endpoint, options = {}, maxRetries = 2) {
         let lastError;
-        
+
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 if (attempt > 1) {
@@ -780,23 +784,23 @@ class ApiService {
                     // Add delay between retries
                     await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
                 }
-                
+
                 return await this.apiCall(endpoint, options);
-                
+
             } catch (error) {
                 lastError = error;
                 console.log(`❌ Attempt ${attempt} failed:`, error.message);
-                
+
                 // Don't retry for certain errors
-                if (error.message.includes('401') || 
-                    error.message.includes('403') || 
+                if (error.message.includes('401') ||
+                    error.message.includes('403') ||
                     error.message.includes('Validation') ||
                     error.name === 'AbortError') {
                     break;
                 }
             }
         }
-        
+
         throw lastError;
     }
 }

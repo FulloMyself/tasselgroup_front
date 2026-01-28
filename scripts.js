@@ -3091,12 +3091,26 @@ class DashboardService {
         const bookingsCount = Array.isArray(bookings) ? bookings.length : 0;
         const giftsCount = Array.isArray(gifts) ? gifts.length : 0;
 
-        document.getElementById('customerOrders').textContent = ordersCount;
-        document.getElementById('customerBookings').textContent = bookingsCount;
-        document.getElementById('customerGifts').textContent = giftsCount;
+        // Safely update all stat elements
+        const updates = {
+            'customerOrders': ordersCount,
+            'customerBookings': bookingsCount,
+            'customerGifts': giftsCount,
+            'ordersBadge': ordersCount,
+            'bookingsBadge': bookingsCount,
+            'giftsBadge': giftsCount
+        };
+
+        Object.entries(updates).forEach(([id, value]) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        });
 
         const totalSpent = this.calculateTotalSpent(orders, bookings, gifts);
-        document.getElementById('customerSpent').textContent = Utils.formatCurrency(totalSpent);
+        const spentEl = document.getElementById('customerSpent');
+        if (spentEl) spentEl.textContent = Utils.formatCurrency(totalSpent);
+
+        console.log('✅ Customer dashboard stats updated:', { ordersCount, bookingsCount, giftsCount, totalSpent });
     }
 
     static calculateTotalSpent(orders, bookings, gifts) {
@@ -4720,27 +4734,45 @@ class CustomerDashboard {
     }
 
     static updateCustomerStats(orders, bookings, gifts) {
-        const totalOrders = orders.length;
-        const totalBookings = bookings.length;
-        const totalGifts = gifts.length;
+        const totalOrders = Array.isArray(orders) ? orders.length : 0;
+        const totalBookings = Array.isArray(bookings) ? bookings.length : 0;
+        const totalGifts = Array.isArray(gifts) ? gifts.length : 0;
         const totalSpent = this.calculateTotalSpent(orders, bookings, gifts);
 
-        // Update numbers
-        document.getElementById('customerOrders').textContent = totalOrders;
-        document.getElementById('customerBookings').textContent = totalBookings;
-        document.getElementById('customerGifts').textContent = totalGifts;
-        document.getElementById('customerSpent').textContent = Utils.formatCurrency(totalSpent);
+        // Update main numbers - safely update if elements exist
+        const elementsToUpdate = {
+            'customerOrders': totalOrders.toString(),
+            'customerBookings': totalBookings.toString(),
+            'customerGifts': totalGifts.toString(),
+            'customerSpent': Utils.formatCurrency(totalSpent),
+            'ordersBadge': totalOrders.toString(),
+            'bookingsBadge': totalBookings.toString(),
+            'giftsBadge': totalGifts.toString()
+        };
 
-        // Update badges
-        document.getElementById('ordersBadge').textContent = totalOrders;
-        document.getElementById('bookingsBadge').textContent = totalBookings;
-        document.getElementById('giftsBadge').textContent = totalGifts;
+        Object.entries(elementsToUpdate).forEach(([id, value]) => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.textContent = value;
+            }
+        });
 
-        // Update progress bars (example logic)
-        document.getElementById('ordersProgress').style.width = `${Math.min(totalOrders * 10, 100)}%`;
-        document.getElementById('bookingsProgress').style.width = `${Math.min(totalBookings * 15, 100)}%`;
-        document.getElementById('giftsProgress').style.width = `${Math.min(totalGifts * 20, 100)}%`;
-        document.getElementById('spendingProgress').style.width = `${Math.min(totalSpent / 100, 100)}%`;
+        // Update progress bars safely
+        const progressBars = {
+            'ordersProgress': Math.min(totalOrders * 10, 100),
+            'bookingsProgress': Math.min(totalBookings * 15, 100),
+            'giftsProgress': Math.min(totalGifts * 20, 100),
+            'spendingProgress': Math.min(totalSpent / 100, 100)
+        };
+
+        Object.entries(progressBars).forEach(([id, width]) => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.style.width = `${width}%`;
+            }
+        });
+
+        console.log('✅ Updated customer stats:', { totalOrders, totalBookings, totalGifts, totalSpent });
     }
 
     static calculateTotalSpent(orders, bookings, gifts) {
@@ -4752,32 +4784,22 @@ class CustomerDashboard {
     }
 
     static loadRecentActivity(orders, bookings, gifts) {
+        const activityList = document.getElementById('recentActivityList');
+        
+        if (!activityList) {
+            console.warn('recentActivityList element not found');
+            return;
+        }
+
         const allActivities = [
             ...orders.map(o => ({ ...o, type: 'order', date: o.createdAt })),
             ...bookings.map(b => ({ ...b, type: 'booking', date: b.date || b.createdAt })),
             ...gifts.map(g => ({ ...g, type: 'gift', date: g.createdAt }))
         ];
 
-        // Include a login activity for the current user (if available)
-        try {
-            const current = AppState.currentUser || JSON.parse(localStorage.getItem('currentUser') || 'null');
-            if (current && current.lastLogin) {
-                allActivities.push({
-                    type: 'login',
-                    date: current.lastLogin,
-                    user: { name: current.name, email: current.email, _id: current._id },
-                    description: 'Last login'
-                });
-            }
-        } catch (err) {
-            console.warn('Could not parse currentUser for login activity:', err);
-        }
-
         const sortedActivities = allActivities
             .sort((a, b) => new Date(b.date) - new Date(a.date))
             .slice(0, 5);
-
-        const activityList = document.getElementById('recentActivityList');
 
         if (sortedActivities.length === 0) {
             activityList.innerHTML = `
@@ -4801,7 +4823,7 @@ class CustomerDashboard {
                 </div>
                 <div class="activity-status">
                     <span class="badge bg-${Utils.getStatusColor(activity.status)}">
-                        ${activity.status}
+                        ${activity.status || 'pending'}
                     </span>
                 </div>
             </div>
@@ -5263,7 +5285,7 @@ class ProductManagementService {
                             <div class="col-md-3">
                                 <select id="categoryFilter" class="form-select" onchange="ProductManagementService.filterProducts()">
                                     <option value="">All Categories</option>
-                                    ${categories.map(cat => `<option value="${cat._id}">${cat.name}</option>`).join('')}
+                                    ${categories.map(cat => `<option value="${typeof cat === 'string' ? cat : cat._id}">${typeof cat === 'string' ? cat : cat.name}</option>`).join('')}
                                 </select>
                             </div>
                             <div class="col-md-3">
@@ -5365,9 +5387,20 @@ class ProductManagementService {
         }
 
         return products.map(product => {
-            const category = categories.find(cat => cat._id === product.category) || { name: 'Uncategorized' };
-            const stockStatus = this.getStockStatus(product.stock, product.lowStockThreshold);
-            const statusColor = this.getStatusColor(product.status, stockStatus);
+            // Handle both string categories and object categories
+            let categoryName = product.category;
+            if (categories && categories.length > 0) {
+                const catObj = categories.find(cat => (typeof cat === 'string' ? cat === product.category : cat._id === product.category));
+                if (catObj) {
+                    categoryName = typeof catObj === 'string' ? catObj : catObj.name;
+                }
+            }
+            
+            // Support both old field names (stock, status) and new ones (stockQuantity, inStock)
+            const stock = product.stockQuantity !== undefined ? product.stockQuantity : (product.stock || 0);
+            const isActive = product.inStock !== undefined ? product.inStock : (product.status === 'active');
+            const stockStatus = this.getStockStatus(stock, product.lowStockThreshold || 10);
+            const statusColor = isActive ? 'success' : 'danger';
 
             return `
                 <tr>
@@ -5382,15 +5415,15 @@ class ProductManagementService {
                         <strong>${this.escapeHtml(product.name)}</strong>
                         ${product.description ? `<br><small class="text-muted">${this.escapeHtml(product.description.substring(0, 50))}...</small>` : ''}
                     </td>
-                    <td>${this.escapeHtml(category.name)}</td>
+                    <td>${this.escapeHtml(categoryName)}</td>
                     <td><strong>${Utils.formatCurrency(product.price)}</strong></td>
                     <td>
-                        <span class="badge bg-${stockStatus.color}">${product.stock || 0}</span>
+                        <span class="badge bg-${stockStatus.color}">${stock}</span>
                         ${stockStatus.isLow ? '<br><small class="text-warning">Low Stock</small>' : ''}
                     </td>
                     <td>
                         <span class="badge bg-${statusColor}">
-                            ${product.status === 'active' ? 'Active' : 'Inactive'}
+                            ${isActive ? 'Active' : 'Inactive'}
                         </span>
                     </td>
                     <td>${new Date(product.createdAt).toLocaleDateString()}</td>
@@ -5401,10 +5434,10 @@ class ProductManagementService {
                                     title="Edit Product">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-outline-${product.status === 'active' ? 'warning' : 'success'}" 
-                                    onclick="ProductManagementService.toggleProductStatus('${product._id}', ${product.status === 'active'})"
-                                    title="${product.status === 'active' ? 'Deactivate' : 'Activate'}">
-                                <i class="fas fa-${product.status === 'active' ? 'pause' : 'play'}"></i>
+                            <button class="btn btn-outline-${(product.inStock !== undefined ? product.inStock : (product.status === 'active')) ? 'warning' : 'success'}" 
+                                    onclick="ProductManagementService.toggleProductStatus('${product._id}', ${(product.inStock !== undefined ? product.inStock : (product.status === 'active'))})"
+                                    title="${(product.inStock !== undefined ? product.inStock : (product.status === 'active')) ? 'Deactivate' : 'Activate'}">
+                                <i class="fas fa-${(product.inStock !== undefined ? product.inStock : (product.status === 'active')) ? 'pause' : 'play'}"></i>
                             </button>
                             <button class="btn btn-outline-info" 
                                     onclick="ProductManagementService.showStockManagement('${product._id}')"
@@ -5530,27 +5563,22 @@ class ProductManagementService {
     static async populateCategoriesDropdown() {
         try {
             const categoriesResponse = await ApiService.get('/categories');
-            const categories = this.extractCategoriesArray(categoriesResponse);
+            const categories = Array.isArray(categoriesResponse) ? categoriesResponse : [];
             const dropdown = document.getElementById('productCategory');
 
             if (dropdown) {
                 dropdown.innerHTML = '<option value="">Select Category</option>' +
-                    categories.map(cat => `<option value="${cat._id}">${cat.name}</option>`).join('');
+                    categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
             }
         } catch (error) {
             console.error('Error loading categories:', error);
             // Use default categories if API fails
-            const defaultCategories = [
-                { _id: '1', name: 'Skincare' },
-                { _id: '2', name: 'Haircare' },
-                { _id: '3', name: 'Body Care' },
-                { _id: '4', name: 'Fragrance' }
-            ];
+            const defaultCategories = ['skincare', 'haircare', 'Wellness', 'makeup', 'fragrance'];
 
             const dropdown = document.getElementById('productCategory');
             if (dropdown) {
                 dropdown.innerHTML = '<option value="">Select Category</option>' +
-                    defaultCategories.map(cat => `<option value="${cat._id}">${cat.name}</option>`).join('');
+                    defaultCategories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
             }
         }
     }
@@ -5562,22 +5590,35 @@ class ProductManagementService {
         const formData = new FormData(form);
 
         try {
-            // Convert form data to JSON for API (adjust based on your API requirements)
+            // Convert form data to JSON for API (match backend field names)
             const productData = {
                 name: formData.get('name'),
                 description: formData.get('description'),
                 price: parseFloat(formData.get('price')),
-                stock: parseInt(formData.get('stock')) || 0,
-                lowStockThreshold: parseInt(formData.get('lowStockThreshold')) || 10,
-                category: formData.get('category') || null,
-                status: formData.get('active') ? 'active' : 'inactive'
+                stockQuantity: parseInt(formData.get('stock')) || 0,
+                category: formData.get('category') || 'General',
+                inStock: formData.get('active') ? true : false,
+                tags: []
             };
 
-            // If image is selected, you might need to handle file upload separately
+            // If image is selected, handle file upload
             const imageFile = formData.get('image');
             if (imageFile && imageFile.size > 0) {
-                // Handle image upload - this depends on your backend implementation
-                productData.image = await this.uploadProductImage(imageFile);
+                // Create FormData for image upload
+                const imgFormData = new FormData();
+                imgFormData.append('image', imageFile);
+                const uploadResponse = await fetch(`${AppConfig.API_BASE}/upload/product-image`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${Utils.getAuthToken()}`
+                    },
+                    body: imgFormData
+                });
+                
+                if (uploadResponse.ok) {
+                    const uploadData = await uploadResponse.json();
+                    productData.image = uploadData.imageUrl;
+                }
             }
 
             const result = await ApiService.post('/products', productData);
@@ -5633,7 +5674,8 @@ class ProductManagementService {
     static async showEditProductModal(productId) {
         try {
             const product = await ApiService.get(`/products/${productId}`);
-            const categories = await ApiService.get('/categories');
+            const categoriesResponse = await ApiService.get('/categories');
+            const categories = Array.isArray(categoriesResponse) ? categoriesResponse : [];
 
             const modalHtml = `
             <div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
@@ -5658,9 +5700,11 @@ class ProductManagementService {
                                             <label for="editProductCategory" class="form-label">Category</label>
                                             <select class="form-select" id="editProductCategory" name="category">
                                                 <option value="">Select Category</option>
-                                                ${categories.map(cat =>
-                `<option value="${cat._id}" ${product.category === cat._id ? 'selected' : ''}>${cat.name}</option>`
-            ).join('')}
+                                                ${categories.map(cat => {
+                                                    const catValue = typeof cat === 'string' ? cat : cat._id;
+                                                    const catLabel = typeof cat === 'string' ? cat : cat.name;
+                                                    return `<option value="${catValue}" ${product.category === catValue ? 'selected' : ''}>${catLabel}</option>`;
+                                                }).join('')}
                                             </select>
                                         </div>
                                     </div>
@@ -5683,7 +5727,7 @@ class ProductManagementService {
                                         <div class="mb-3">
                                             <label for="editProductStock" class="form-label">Current Stock</label>
                                             <input type="number" class="form-control" id="editProductStock" name="stock" 
-                                                   value="${product.stock || 0}" min="0" readonly>
+                                                   value="${product.stockQuantity || 0}" min="0" readonly>
                                             <small class="text-muted">Use stock management to update quantity</small>
                                         </div>
                                     </div>
@@ -5714,7 +5758,7 @@ class ProductManagementService {
 
                                 <div class="mb-3">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="editProductActive" name="active" ${product.status === 'active' ? 'checked' : ''}>
+                                        <input class="form-check-input" type="checkbox" id="editProductActive" name="active" ${product.inStock ? 'checked' : ''}>
                                         <label class="form-check-label" for="editProductActive">
                                             Active Product
                                         </label>
@@ -5768,15 +5812,29 @@ class ProductManagementService {
                 name: formData.get('name'),
                 description: formData.get('description'),
                 price: parseFloat(formData.get('price')),
-                lowStockThreshold: parseInt(formData.get('lowStockThreshold')) || 10,
-                category: formData.get('category') || null,
-                status: formData.get('active') ? 'active' : 'inactive'
+                stockQuantity: parseInt(formData.get('stock')) || 0,
+                category: formData.get('category') || 'General',
+                inStock: formData.get('active') ? true : false,
+                tags: []
             };
 
             // Handle image update if provided
             const imageFile = formData.get('image');
             if (imageFile && imageFile.size > 0) {
-                updateData.image = await this.uploadProductImage(imageFile);
+                const imgFormData = new FormData();
+                imgFormData.append('image', imageFile);
+                const uploadResponse = await fetch(`${AppConfig.API_BASE}/upload/product-image`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${Utils.getAuthToken()}`
+                    },
+                    body: imgFormData
+                });
+                
+                if (uploadResponse.ok) {
+                    const uploadData = await uploadResponse.json();
+                    updateData.image = uploadData.imageUrl;
+                }
             }
 
             const result = await ApiService.put(`/products/${productId}`, updateData);
@@ -5804,6 +5862,7 @@ class ProductManagementService {
 
     static async toggleProductStatus(productId, isCurrentlyActive) {
         const newStatus = isCurrentlyActive ? 'inactive' : 'active';
+        const newInStock = isCurrentlyActive ? false : true;
         const confirmMessage = `Are you sure you want to ${isCurrentlyActive ? 'deactivate' : 'activate'} this product?`;
 
         if (!confirm(confirmMessage)) return;
@@ -5811,107 +5870,59 @@ class ProductManagementService {
         try {
             console.log(`🔄 Toggling product ${productId} status to: ${newStatus}`);
 
-            // Try different API endpoints and methods
-            let result;
+            // Update using the correct field names
+            const updateData = {
+                inStock: newInStock
+            };
 
-            // First try PATCH endpoint (most common)
-            try {
-                result = await ApiService.patch(`/products/${productId}`, { status: newStatus });
-                console.log('✅ Product status updated via PATCH:', result);
-            } catch (patchError) {
-                console.log('⚠️ PATCH failed, trying PUT...');
-                // Fallback to PUT
-                try {
-                    result = await ApiService.put(`/products/${productId}`, { status: newStatus });
-                    console.log('✅ Product status updated via PUT:', result);
-                } catch (putError) {
-                    console.log('⚠️ PUT failed, trying update endpoint...');
-                    // Fallback to update endpoint
-                    try {
-                        result = await ApiService.post(`/products/${productId}/update`, { status: newStatus });
-                        console.log('✅ Product status updated via POST update:', result);
-                    } catch (postError) {
-                        throw new Error('All update methods failed');
-                    }
-                }
-            }
+            const result = await ApiService.put(`/products/${productId}`, updateData);
+            console.log('✅ Product status updated via PUT:', result);
 
-            // Check if update was successful based on different response formats
-            const isSuccess =
-                (result && result._id) || // Direct product object with _id
-                (result && result.product && result.product._id) || // Nested product object
-                (result && result.success) || // Success flag
-                (result && result.updated) || // Updated flag
-                (result && result.message && result.message.includes('success')); // Success message
+            // Check if update was successful
+            const isSuccess = result && result._id;
 
             if (isSuccess) {
-                Utils.showNotification(`Product ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`, 'success');
+                Utils.showNotification(`Product ${newInStock ? 'activated' : 'deactivated'} successfully!`, 'success');
 
                 // Refresh the products management view
                 setTimeout(() => {
                     this.loadProductsManagement();
                 }, 1000);
             } else {
-                // If we got a response but it doesn't indicate success, check for message
-                const errorMessage = result?.message || 'Failed to update product status - unknown error';
-                throw new Error(errorMessage);
+                throw new Error('Failed to update product status');
             }
 
         } catch (error) {
             console.error('❌ Error toggling product status:', error);
-
-            // Provide more user-friendly error messages
-            let userMessage = 'Failed to update product status';
-
-            if (error.message.includes('404')) {
-                userMessage = 'Product not found. It may have been deleted.';
-            } else if (error.message.includes('401') || error.message.includes('403')) {
-                userMessage = 'You do not have permission to update products.';
-            } else if (error.message.includes('Failed to fetch')) {
-                userMessage = 'Network error. Please check your connection.';
-            } else if (error.message.includes('All update methods failed')) {
-                userMessage = 'Product update service is currently unavailable.';
-            } else {
-                userMessage = error.message || userMessage;
-            }
-
-            Utils.showNotification(userMessage, 'error');
+            Utils.showNotification('Failed to toggle product status: ' + error.message, 'error');
         }
     }
-
-    // Add this method to help debug API issues
-    static async testProductEndpoints() {
-        console.log('🔧 Testing product API endpoints...');
-
-        try {
-            // Test GET /products
-            const products = await ApiService.get('/products');
-            console.log('✅ GET /products:', products);
-
-            // Test if we can get a specific product
-            if (products && products.length > 0) {
-                const testProductId = products[0]._id;
-                const singleProduct = await ApiService.get(`/products/${testProductId}`);
-                console.log(`✅ GET /products/${testProductId}:`, singleProduct);
-            }
-
-            // Test PATCH endpoint
-            if (products && products.length > 0) {
-                const testProductId = products[0]._id;
-                try {
-                    const patchResult = await ApiService.patch(`/products/${testProductId}`, {
-                        test: true,
-                        timestamp: new Date().toISOString()
-                    });
-                    console.log(`✅ PATCH /products/${testProductId}:`, patchResult);
-                } catch (patchError) {
-                    console.log('❌ PATCH failed:', patchError.message);
-                }
-            }
-
-        } catch (error) {
-            console.error('❌ API test failed:', error);
+    static countActiveProducts(products) {
+        if (!Array.isArray(products)) {
+            console.warn('⚠️ countActiveProducts: products is not an array', products);
+            return 0;
         }
+        return products.filter(p => (p.inStock !== undefined ? p.inStock : p.status === 'active')).length;
+    }
+
+    static countLowStockProducts(products) {
+        if (!Array.isArray(products)) {
+            console.warn('⚠️ countLowStockProducts: products is not an array', products);
+            return 0;
+        }
+        return products.filter(p => {
+            const stock = p.stockQuantity || p.stock || 0;
+            const threshold = p.lowStockThreshold || 10;
+            return stock < threshold;
+        }).length;
+    }
+
+    static getStockStatus(stock, lowStockThreshold = 10) {
+        const isLow = stock < lowStockThreshold;
+        return {
+            isLow: isLow,
+            color: isLow ? 'warning' : 'success'
+        };
     }
 
     static async showStockManagement(productId) {
@@ -5934,11 +5945,11 @@ class ProductManagementService {
                                     <div class="col-12">
                                         <div class="card">
                                             <div class="card-body text-center">
-                                                <h3 class="mb-0 ${this.getStockStatus(product.stock, product.lowStockThreshold).isLow ? 'text-warning' : 'text-success'}">
-                                                    ${product.stock || 0}
+                                                <h3 class="mb-0 ${this.getStockStatus(product.stockQuantity || product.stock || 0, product.lowStockThreshold).isLow ? 'text-warning' : 'text-success'}">
+                                                    ${product.stockQuantity || product.stock || 0}
                                                 </h3>
                                                 <p class="mb-0">Current Stock</p>
-                                                ${this.getStockStatus(product.stock, product.lowStockThreshold).isLow ?
+                                                ${this.getStockStatus(product.stockQuantity || product.stock || 0, product.lowStockThreshold).isLow ?
                     '<small class="text-warning">⚠️ Low Stock Alert</small>' : ''}
                                             </div>
                                         </div>
@@ -5993,7 +6004,7 @@ class ProductManagementService {
 
             // Add form submit handler
             document.getElementById('stockManagementForm').addEventListener('submit', (e) => {
-                this.handleStockUpdate(e, productId, product.stock || 0);
+                this.handleStockUpdate(e, productId, product.stockQuantity || product.stock || 0);
             });
 
             // Show modal
@@ -6033,19 +6044,11 @@ class ProductManagementService {
             }
 
             const updateData = {
-                stock: newStock,
-                stockUpdate: {
-                    action,
-                    quantity,
-                    previousStock: currentStock,
-                    newStock,
-                    reason,
-                    notes,
-                    timestamp: new Date().toISOString()
-                }
+                stockQuantity: newStock,
+                inStock: newStock > 0
             };
 
-            const result = await ApiService.patch(`/products/${productId}`, updateData);
+            const result = await ApiService.patch(`/products/${productId}/stock`, updateData);
 
             if (result && result._id) {
                 Utils.showNotification('Stock updated successfully!', 'success');
@@ -6138,7 +6141,8 @@ class ProductManagementService {
 
     static async showCategoriesManagement() {
         try {
-            const categories = await ApiService.get('/categories');
+            const categoriesResponse = await ApiService.get('/categories');
+            const categories = Array.isArray(categoriesResponse) ? categoriesResponse : [];
 
             const modalHtml = `
             <div class="modal fade" id="categoriesManagementModal" tabindex="-1" aria-labelledby="categoriesManagementModalLabel" aria-hidden="true">
@@ -6152,53 +6156,37 @@ class ProductManagementService {
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            <div class="row mb-4">
-                                <div class="col-12">
-                                    <button type="button" class="btn btn-primary" onclick="ProductManagementService.showCreateCategoryModal()">
-                                        <i class="fas fa-plus me-2"></i>Add New Category
-                                    </button>
-                                </div>
+                            <div class="alert alert-info" role="alert">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Categories are automatically derived from products in your system. All available product categories are listed below.
                             </div>
 
                             <div class="table-responsive">
                                 <table class="table table-striped">
-                                    <thead>
+                                    <thead class="table-light">
                                         <tr>
-                                            <th>Name</th>
-                                            <th>Description</th>
-                                            <th>Products Count</th>
+                                            <th>Category Name</th>
                                             <th>Status</th>
-                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         ${categories.map(category => `
                                             <tr>
-                                                <td><strong>${this.escapeHtml(category.name)}</strong></td>
-                                                <td>${this.escapeHtml(category.description || 'No description')}</td>
-                                                <td><span class="badge bg-primary">${category.productCount || 0}</span></td>
+                                                <td><strong>${this.escapeHtml(category)}</strong></td>
                                                 <td>
-                                                    <span class="badge bg-${category.status === 'active' ? 'success' : 'secondary'}">
-                                                        ${category.status === 'active' ? 'Active' : 'Inactive'}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" 
-                                                                onclick="ProductManagementService.showEditCategoryModal('${category._id}')">
-                                                            <i class="fas fa-edit"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" 
-                                                                onclick="ProductManagementService.deleteCategory('${category._id}')">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    </div>
+                                                    <span class="badge bg-success">Active</span>
                                                 </td>
                                             </tr>
                                         `).join('')}
                                     </tbody>
                                 </table>
                             </div>
+
+                            ${categories.length === 0 ? `
+                                <div class="alert alert-warning" role="alert">
+                                    No categories found. Create products to establish categories.
+                                </div>
+                            ` : ''}
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -6227,13 +6215,23 @@ class ProductManagementService {
         }
     }
 
-    static countActiveProducts(products) {
-        if (!Array.isArray(products)) {
-            console.warn('⚠️ countActiveProducts: products is not an array', products);
-            return 0;
-        }
-        return products.filter(product => product && product.status === 'active').length;
+    static async showCreateCategoryModal() {
+        Utils.showNotification('Categories are automatically created when you assign them to products.', 'info');
     }
+
+    static async handleCreateCategory(e) {
+        e.preventDefault();
+        Utils.showNotification('Categories are automatically managed through products.', 'info');
+    }
+
+    static async showEditCategoryModal(categoryId) {
+        Utils.showNotification('To manage categories, edit the products assigned to each category.', 'info');
+    }
+
+    static async deleteCategory(categoryId) {
+        Utils.showNotification('Categories cannot be deleted. They are maintained automatically based on product assignments.', 'warning');
+    }
+
 
     // Update the countLowStockProducts method to be more defensive
     static countLowStockProducts(products) {
@@ -6500,6 +6498,474 @@ class ChartHelper {
                 </div>
             `;
         }
+    }
+}
+
+// ===== SERVICE MANAGEMENT SERVICE =====
+class ServiceManagementService {
+    static async loadServicesManagement() {
+        try {
+            console.log('🔧 Loading services management...');
+            
+            // Fetch services from API
+            const services = await ApiService.get('/services');
+            const servicesList = this.extractServicesArray(services);
+            
+            console.log('🔧 Services loaded:', servicesList.length);
+            
+            // Show services management modal
+            this.showServicesManagementModal(servicesList);
+            
+        } catch (error) {
+            console.error('❌ Error loading services management:', error);
+            Utils.showNotification('Failed to load services data', 'error');
+            
+            // Show modal with empty data as fallback
+            this.showServicesManagementModal([]);
+        }
+    }
+
+    static extractServicesArray(data) {
+        if (!data) return [];
+        
+        // Case 1: Direct array
+        if (Array.isArray(data)) {
+            return data;
+        }
+        
+        // Case 2: Object with services array
+        if (data.services && Array.isArray(data.services)) {
+            return data.services;
+        }
+        
+        // Case 3: Object with data array
+        if (data.data && Array.isArray(data.data)) {
+            return data.data;
+        }
+        
+        return [];
+    }
+
+    static showServicesManagementModal(services) {
+        if (!Array.isArray(services)) {
+            services = [];
+        }
+
+        const modalHtml = `
+        <div class="modal fade" id="servicesManagementModal" tabindex="-1" aria-labelledby="servicesManagementModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="servicesManagementModalLabel">
+                            <i class="fas fa-spa me-2"></i>
+                            Services Management
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Quick Stats -->
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="card text-center bg-success text-white">
+                                    <div class="card-body">
+                                        <h3>${services.length}</h3>
+                                        <p class="mb-0">Total Services</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card text-center bg-info text-white">
+                                    <div class="card-body">
+                                        <h3>${services.filter(s => s.available !== false).length}</h3>
+                                        <p class="mb-0">Available Services</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card text-center bg-warning text-white">
+                                    <div class="card-body">
+                                        <h3>$${services.reduce((sum, s) => sum + (s.price || 0), 0).toFixed(2)}</h3>
+                                        <p class="mb-0">Total Value</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Controls -->
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" id="servicesSearch" placeholder="Search services..." onkeyup="ServiceManagementService.filterServices()">
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-primary w-100" onclick="ServiceManagementService.showCreateServiceModal()">
+                                    <i class="fas fa-plus me-2"></i>Add New Service
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Services Table -->
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Service Name</th>
+                                        <th>Category</th>
+                                        <th>Price</th>
+                                        <th>Duration (min)</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="servicesTableBody">
+                                    ${this.generateServicesTableRows(services)}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('servicesManagementModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Add modal to DOM
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Store services data in modal for filtering
+        const modal = document.getElementById('servicesManagementModal');
+        modal.dataset.services = JSON.stringify(services);
+
+        // Show modal
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+
+        // Clean up modal when hidden
+        modal.addEventListener('hidden.bs.modal', () => {
+            modal.remove();
+        });
+    }
+
+    static generateServicesTableRows(services) {
+        if (!Array.isArray(services) || services.length === 0) {
+            return `<tr><td colspan="6" class="text-center text-muted py-4">No services found</td></tr>`;
+        }
+
+        return services.map(service => `
+            <tr>
+                <td><strong>${this.escapeHtml(service.name || 'N/A')}</strong></td>
+                <td>${this.escapeHtml(service.category || 'General')}</td>
+                <td>$${(service.price || 0).toFixed(2)}</td>
+                <td>${service.duration || '-'}</td>
+                <td>
+                    <span class="badge ${service.available !== false ? 'bg-success' : 'bg-danger'}">
+                        ${service.available !== false ? 'Available' : 'Unavailable'}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-warning" onclick="ServiceManagementService.showEditServiceModal('${service._id}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="ServiceManagementService.deleteService('${service._id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    static escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    static async showCreateServiceModal() {
+        const modalHtml = `
+        <div class="modal fade" id="createServiceModal" tabindex="-1" aria-labelledby="createServiceModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <form id="createServiceForm">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title" id="createServiceModalLabel">
+                                <i class="fas fa-plus me-2"></i>Create New Service
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="serviceName" class="form-label">Service Name *</label>
+                                        <input type="text" class="form-control" id="serviceName" name="name" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="serviceCategory" class="form-label">Category</label>
+                                        <input type="text" class="form-control" id="serviceCategory" name="category" placeholder="e.g., Facial">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="serviceDescription" class="form-label">Description</label>
+                                <textarea class="form-control" id="serviceDescription" name="description" rows="3"></textarea>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="servicePrice" class="form-label">Price ($) *</label>
+                                        <input type="number" class="form-control" id="servicePrice" name="price" step="0.01" min="0" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="serviceDuration" class="form-label">Duration (minutes) *</label>
+                                        <input type="number" class="form-control" id="serviceDuration" name="duration" min="1" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="serviceAvailable" name="available" checked>
+                                    <label class="form-check-label" for="serviceAvailable">
+                                        Available
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Create Service</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('createServiceModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Add modal to DOM
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Add form submission handler
+        const form = document.getElementById('createServiceForm');
+        form.addEventListener('submit', (e) => this.handleCreateService(e));
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('createServiceModal'));
+        modal.show();
+    }
+
+    static async handleCreateService(e) {
+        e.preventDefault();
+
+        const form = e.target;
+        const formData = new FormData(form);
+
+        try {
+            const serviceData = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                price: parseFloat(formData.get('price')),
+                duration: parseInt(formData.get('duration')),
+                category: formData.get('category') || 'General',
+                available: formData.get('available') ? true : false
+            };
+
+            const result = await ApiService.post('/services', serviceData);
+
+            if (result && result._id) {
+                Utils.showNotification('Service created successfully!', 'success');
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('createServiceModal'));
+                modal.hide();
+
+                // Refresh services management
+                setTimeout(() => {
+                    this.loadServicesManagement();
+                }, 1000);
+            } else {
+                throw new Error('Failed to create service');
+            }
+
+        } catch (error) {
+            console.error('Error creating service:', error);
+            Utils.showNotification('Failed to create service: ' + error.message, 'error');
+        }
+    }
+
+    static async showEditServiceModal(serviceId) {
+        try {
+            const service = await ApiService.get(`/services/${serviceId}`);
+
+            const modalHtml = `
+            <div class="modal fade" id="editServiceModal" tabindex="-1" aria-labelledby="editServiceModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <form id="editServiceForm">
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title" id="editServiceModalLabel">Edit Service: ${this.escapeHtml(service.name)}</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="editServiceName" class="form-label">Service Name *</label>
+                                            <input type="text" class="form-control" id="editServiceName" name="name" 
+                                                   value="${this.escapeHtml(service.name)}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="editServiceCategory" class="form-label">Category</label>
+                                            <input type="text" class="form-control" id="editServiceCategory" name="category" 
+                                                   value="${this.escapeHtml(service.category || '')}">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editServiceDescription" class="form-label">Description</label>
+                                    <textarea class="form-control" id="editServiceDescription" name="description" rows="3">${this.escapeHtml(service.description || '')}</textarea>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="editServicePrice" class="form-label">Price ($) *</label>
+                                            <input type="number" class="form-control" id="editServicePrice" name="price" 
+                                                   value="${service.price}" step="0.01" min="0" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="editServiceDuration" class="form-label">Duration (minutes) *</label>
+                                            <input type="number" class="form-control" id="editServiceDuration" name="duration" 
+                                                   value="${service.duration}" min="1" required>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="editServiceAvailable" name="available" 
+                                               ${service.available !== false ? 'checked' : ''}>
+                                        <label class="form-check-label" for="editServiceAvailable">
+                                            Available
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Update Service</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if any
+            const existingModal = document.getElementById('editServiceModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Add modal to DOM
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            // Add form submission handler
+            const form = document.getElementById('editServiceForm');
+            form.addEventListener('submit', (e) => this.handleUpdateService(e, serviceId));
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('editServiceModal'));
+            modal.show();
+
+        } catch (error) {
+            console.error('Error loading service for edit:', error);
+            Utils.showNotification('Failed to load service details', 'error');
+        }
+    }
+
+    static async handleUpdateService(e, serviceId) {
+        e.preventDefault();
+
+        const form = e.target;
+        const formData = new FormData(form);
+
+        try {
+            const serviceData = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                price: parseFloat(formData.get('price')),
+                duration: parseInt(formData.get('duration')),
+                category: formData.get('category') || 'General',
+                available: formData.get('available') ? true : false
+            };
+
+            const result = await ApiService.put(`/services/${serviceId}`, serviceData);
+
+            if (result) {
+                Utils.showNotification('Service updated successfully!', 'success');
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editServiceModal'));
+                modal.hide();
+
+                // Refresh services management
+                setTimeout(() => {
+                    this.loadServicesManagement();
+                }, 1000);
+            } else {
+                throw new Error('Failed to update service');
+            }
+
+        } catch (error) {
+            console.error('Error updating service:', error);
+            Utils.showNotification('Failed to update service: ' + error.message, 'error');
+        }
+    }
+
+    static async deleteService(serviceId) {
+        if (!confirm('Are you sure you want to delete this service?')) {
+            return;
+        }
+
+        try {
+            await ApiService.delete(`/services/${serviceId}`);
+            Utils.showNotification('Service deleted successfully!', 'success');
+
+            // Refresh services management
+            this.loadServicesManagement();
+
+        } catch (error) {
+            console.error('Error deleting service:', error);
+            Utils.showNotification('Failed to delete service: ' + error.message, 'error');
+        }
+    }
+
+    static filterServices() {
+        const searchTerm = document.getElementById('servicesSearch').value.toLowerCase();
+        const modal = document.getElementById('servicesManagementModal');
+        const services = JSON.parse(modal.dataset.services || '[]');
+
+        const filteredServices = services.filter(service => {
+            const matchesSearch = service.name.toLowerCase().includes(searchTerm) ||
+                (service.description && service.description.toLowerCase().includes(searchTerm)) ||
+                (service.category && service.category.toLowerCase().includes(searchTerm));
+
+            return matchesSearch;
+        });
+
+        document.getElementById('servicesTableBody').innerHTML = this.generateServicesTableRows(filteredServices);
     }
 }
 
@@ -8340,13 +8806,16 @@ class AdminService {
     }
 
     static initializeStaffPerformanceChart(orders, bookings) {
-        const ctx = document.getElementById('staffPerformanceChart');
-        if (!ctx) {
+        const canvas = document.getElementById('staffPerformanceChart');
+        if (!canvas) {
             console.warn('❌ Staff performance chart canvas not found');
             return;
         }
 
         try {
+            // Get the 2D context for gradient creation
+            const ctx = canvas.getContext('2d');
+
             // Calculate staff performance (orders processed + bookings assigned)
             const staffPerformance = {};
 
@@ -8391,7 +8860,17 @@ class AdminService {
                 console.warn('⚠️ Error destroying previous staff performance chart instance', e);
             }
 
-            const staffPerfChartInstance = new Chart(ctx, {
+            // Create gradient for orders dataset
+            const ordersGradient = ctx.createLinearGradient(0, 0, 0, 400);
+            ordersGradient.addColorStop(0, 'rgba(54, 162, 235, 0.9)');
+            ordersGradient.addColorStop(1, 'rgba(54, 162, 235, 0.4)');
+
+            // Create gradient for bookings dataset
+            const bookingsGradient = ctx.createLinearGradient(0, 0, 0, 400);
+            bookingsGradient.addColorStop(0, 'rgba(75, 192, 192, 0.9)');
+            bookingsGradient.addColorStop(1, 'rgba(75, 192, 192, 0.4)');
+
+            const staffPerfChartInstance = new Chart(canvas, {
                 type: 'bar',
                 data: {
                     labels: staffNames,
@@ -8399,30 +8878,108 @@ class AdminService {
                         {
                             label: 'Orders Processed',
                             data: ordersData,
-                            backgroundColor: 'rgba(54, 162, 235, 0.8)'
+                            backgroundColor: ordersGradient,
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 2,
+                            borderRadius: 8,
+                            borderSkipped: false,
+                            hoverBackgroundColor: 'rgba(54, 162, 235, 1)',
+                            hoverBorderColor: 'rgba(54, 162, 235, 1.5)'
                         },
                         {
                             label: 'Bookings Assigned',
                             data: bookingsData,
-                            backgroundColor: 'rgba(255, 99, 132, 0.8)'
+                            backgroundColor: bookingsGradient,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 2,
+                            borderRadius: 8,
+                            borderSkipped: false,
+                            hoverBackgroundColor: 'rgba(75, 192, 192, 1)',
+                            hoverBorderColor: 'rgba(75, 192, 192, 1.5)'
                         }
                     ]
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: true,
                     plugins: {
                         title: {
                             display: true,
-                            text: 'Staff Performance'
+                            text: 'Staff Performance',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            padding: {
+                                top: 10,
+                                bottom: 30
+                            },
+                            color: 'rgba(0, 0, 0, 0.8)'
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                boxWidth: 15,
+                                padding: 15,
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                },
+                                color: 'rgba(0, 0, 0, 0.7)',
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 12
+                            },
+                            borderColor: 'rgba(255, 255, 255, 0.3)',
+                            borderWidth: 1,
+                            displayColors: true,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y + ' ' + (context.parsed.y === 1 ? 'item' : 'items');
+                                }
+                            }
                         }
                     },
                     scales: {
                         x: {
-                            stacked: false
+                            stacked: false,
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 11,
+                                    weight: '500'
+                                },
+                                color: 'rgba(0, 0, 0, 0.7)'
+                            }
                         },
                         y: {
                             stacked: false,
-                            beginAtZero: true
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 11,
+                                    weight: '500'
+                                },
+                                color: 'rgba(0, 0, 0, 0.7)',
+                                stepSize: 1
+                            }
                         }
                     }
                 }
@@ -8764,6 +9321,15 @@ class AdminService {
 
 // ===== ADMIN MODAL FUNCTIONS =====
 function showAdminModal(type, id, currentStatus = '', currentStaff = '') {
+    // Handle special management modals
+    if (type === 'addService') {
+        return ServiceManagementService.loadServicesManagement();
+    }
+
+    if (type === 'addVoucher') {
+        return AdminService.showVouchersManagement();
+    }
+
     // First, ensure the modal HTML exists in the DOM
     ensureAdminModalExists();
 

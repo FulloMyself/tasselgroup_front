@@ -469,9 +469,47 @@ class CartService {
                 staffId: document.getElementById('cartStaff')?.value || null
             };
 
-            const result = await ApiService.post('/payment/manual-order', orderData);
+            let result;
+            try {
+                result = await ApiService.post('/payment/manual-order', orderData);
+            } catch (err) {
+                // If the API timed out but may have processed the order server-side, poll recent orders
+                if (err.message && err.message.toLowerCase().includes('payment is processing')) {
+                    Utils.showNotification('Payment is processing. Verifying order status...', 'info');
+                    const totals = CartService.calculateCartTotals();
+                    const maxAttempts = 6;
+                    const delayMs = 5000;
+                    let found = false;
+                    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                        try {
+                            await new Promise(r => setTimeout(r, delayMs));
+                            const resp = await ApiService.get('/dashboard/orders/my-orders');
+                            if (Array.isArray(resp)) {
+                                const match = resp.find(o => Math.abs((o.finalTotal || o.total || 0) - totals.total) < 0.01 && new Date(o.createdAt) > new Date(Date.now() - 10 * 60 * 1000));
+                                if (match) {
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        } catch (pollErr) {
+                            console.warn('Polling for order confirmation failed:', pollErr.message || pollErr);
+                        }
+                    }
 
-            if (result.success) {
+                    if (found) {
+                        AppState.cart = [];
+                        this.updateCartDisplay();
+                        Utils.showNotification('Order confirmed after processing. Confirmation email should arrive shortly.', 'success');
+                        UIHelper.showSection('dashboard');
+                        return;
+                    } else {
+                        throw new Error('Payment is processing but order could not be confirmed. Please check your dashboard later or contact support.');
+                    }
+                }
+                throw err;
+            }
+
+            if (result && result.success) {
                 // Clear cart on successful order
                 AppState.cart = [];
                 this.updateCartDisplay();
@@ -492,7 +530,7 @@ class CartService {
                     UIHelper.showSection('dashboard');
                 }, 2000);
             } else {
-                throw new Error(result.message || 'Failed to process manual order');
+                throw new Error(result && result.message ? result.message : 'Failed to process manual order');
             }
 
         } catch (error) {
@@ -545,14 +583,15 @@ class ApiService {
             endpoint.includes('/email/'); // Add email endpoints
 
         // Increase timeout significantly for Render's cold starts
-        const timeoutDuration = isPaymentEndpoint ? 90000 : 15000; // 90s for payments/emails, 15s for others
+        const timeoutDuration = isPaymentEndpoint ? 180000 : 15000; // 180s for payments/emails, 15s for others
         const timeoutId = setTimeout(() => {
             if (DEBUG) console.log(`⏰ Timeout for ${endpoint} after ${timeoutDuration}ms`);
             controller.abort();
         }, timeoutDuration);
 
         try {
-            if (DEBUG) console.log(`📡 Making API call to: ${AppConfig.API_BASE}${endpoint}`, {
+            // Always log outgoing API calls so network activity is visible in production (useful on gh-pages)
+            console.log(`📡 Making API call to: ${AppConfig.API_BASE}${endpoint}`, {
                 timeout: timeoutDuration,
                 isPayment: isPaymentEndpoint
             });

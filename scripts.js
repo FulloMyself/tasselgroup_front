@@ -1454,24 +1454,6 @@ class UIHelper {
                 } else {
                     console.error('❌ customerDashboard element not found');
                 }
-                // Ensure quick action buttons exist for customers (create order/booking/gift)
-                try {
-                    let quickActions = customerDashboard.querySelector('#customerQuickActions');
-                    if (!quickActions) {
-                        quickActions = document.createElement('div');
-                        quickActions.id = 'customerQuickActions';
-                        quickActions.className = 'mb-3 d-flex gap-2';
-                        quickActions.innerHTML = `
-                            <button class="btn btn-outline-primary" onclick="createQuickOrder()">Quick Order</button>
-                            <button class="btn btn-outline-success" onclick="createQuickBooking()">Quick Booking</button>
-                            <button class="btn btn-outline-warning" onclick="createGiftForUser()">Quick Gift</button>
-                        `;
-                        const header = customerDashboard.querySelector('.section-header') || customerDashboard;
-                        header.prepend(quickActions);
-                    }
-                } catch (e) {
-                    if (DEBUG) console.warn('Could not insert customer quick actions', e);
-                }
                 if (typeof DashboardService !== 'undefined') {
                     await DashboardService.loadDashboard();
                 }
@@ -3044,6 +3026,8 @@ class DashboardService {
     }
 
     static async loadCustomerDashboard() {
+        console.log('🔄 DashboardService: Starting customer dashboard load...');
+        
         // Ensure dashboard containers visibility
         document.getElementById('adminDashboard').style.display = 'none';
         document.getElementById('staffDashboard').style.display = 'none';
@@ -3056,33 +3040,286 @@ class DashboardService {
         if (contentEl) contentEl.style.display = 'none';
 
         try {
+            console.log('📡 Fetching customer data...');
+            
             const [orders, bookings, giftOrders] = await Promise.allSettled([
                 ApiService.get('/dashboard/orders/my-orders'),
                 ApiService.get('/dashboard/bookings/my-bookings'),
                 ApiService.get('/dashboard/gift-orders/my-gifts')
             ]);
 
-            // Handle potential failures gracefully
-            const ordersData = orders.status === 'fulfilled' ? orders.value : [];
-            const bookingsData = bookings.status === 'fulfilled' ? bookings.value : [];
-            const giftsData = giftOrders.status === 'fulfilled' ? giftOrders.value : [];
+            console.log('✅ API Responses received:', { orders: orders.status, bookings: bookings.status, giftOrders: giftOrders.status });
 
+            // Extract data and handle different response formats
+            let ordersData = [];
+            if (orders.status === 'fulfilled') {
+                const val = orders.value;
+                ordersData = Array.isArray(val) ? val : (val?.orders || val?.data || []);
+            }
+            
+            let bookingsData = [];
+            if (bookings.status === 'fulfilled') {
+                const val = bookings.value;
+                bookingsData = Array.isArray(val) ? val : (val?.bookings || val?.data || []);
+            }
+            
+            let giftsData = [];
+            if (giftOrders.status === 'fulfilled') {
+                const val = giftOrders.value;
+                giftsData = Array.isArray(val) ? val : (val?.gifts || val?.data || []);
+            }
+
+            console.log('📊 Extracted data:', { 
+                ordersCount: ordersData.length, 
+                bookingsCount: bookingsData.length, 
+                giftsCount: giftsData.length 
+            });
+
+            // Update dashboard with actual data
             this.updateCustomerDashboard(ordersData, bookingsData, giftsData);
 
+            // Render the tables with data
+            console.log('🎨 Rendering tables...');
+            this.renderCustomerTables(ordersData, bookingsData, giftsData);
+
+            // Load recent activity
+            console.log('📜 Loading recent activity...');
+            this.loadCustomerRecentActivity(ordersData, bookingsData, giftsData);
+
+            // Show Orders section by default
+            console.log('👁️ Showing Orders section...');
+            const ordersSection = document.getElementById('customerOrdersSection');
+            if (ordersSection) {
+                const sections = document.querySelectorAll('.customer-section');
+                sections.forEach(sec => sec.style.display = 'none');
+                ordersSection.style.display = 'block';
+            }
+
             // Hide loading and show content
+            console.log('🔓 Revealing dashboard...');
             if (loadingEl) loadingEl.style.display = 'none';
             if (contentEl) contentEl.style.display = 'block';
+
+            console.log('✅ Customer dashboard loaded successfully!');
         } catch (error) {
-            console.error('Failed to load customer dashboard:', error);
+            console.error('❌ Failed to load customer dashboard:', error);
             if (loadingEl) {
                 loadingEl.innerHTML = `
                     <div class="alert alert-danger">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        Failed to load dashboard. Please try again.
+                        <strong>Failed to load dashboard:</strong> ${error.message}
+                        <br>
+                        <small>Please refresh the page or contact support.</small>
                     </div>
                 `;
             }
             this.updateCustomerDashboard([], [], []);
+        }
+    }
+
+    static renderCustomerTables(orders, bookings, gifts) {
+        try {
+            // Render orders table
+            const ordersBody = document.getElementById('customerOrdersBody');
+            if (ordersBody) {
+                if (!Array.isArray(orders) || orders.length === 0) {
+                    ordersBody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <i class="fas fa-shopping-bag fa-2x text-muted mb-3"></i>
+                                <p class="mb-1">No orders yet</p>
+                                <small class="text-muted">Start shopping in our premium collection</small>
+                                <br>
+                                <button class="btn btn-primary btn-sm mt-2" onclick="UIHelper.showSection('shop')">
+                                    <i class="fas fa-shopping-cart me-1"></i>Start Shopping
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    ordersBody.innerHTML = orders.map(order => `
+                        <tr>
+                            <td>${new Date(order.createdAt).toLocaleDateString()}</td>
+                            <td><strong>#${order._id.toString().slice(-6)}</strong></td>
+                            <td>${order.items?.length || 0} items</td>
+                            <td>${order.processedBy?.name || 'Not assigned'}</td>
+                            <td><strong>${Utils.formatCurrency(order.finalTotal || order.total || 0)}</strong></td>
+                            <td>
+                                <span class="badge bg-${Utils.getStatusColor(order.status)}">
+                                    ${order.status}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" 
+                                        onclick="ReceiptService.generateReceipt('order', '${order._id}')">
+                                    <i class="fas fa-receipt"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+                console.log('✅ Rendered orders:', orders.length);
+            }
+
+            // Render bookings table
+            const bookingsBody = document.getElementById('customerBookingsBody');
+            if (bookingsBody) {
+                if (!Array.isArray(bookings) || bookings.length === 0) {
+                    bookingsBody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <i class="fas fa-calendar fa-2x text-muted mb-3"></i>
+                                <p class="mb-1">No bookings yet</p>
+                                <small class="text-muted">Book our luxury services</small>
+                                <br>
+                                <button class="btn btn-primary btn-sm mt-2" onclick="UIHelper.showSection('bookings')">
+                                    <i class="fas fa-calendar-plus me-1"></i>Book Service
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    bookingsBody.innerHTML = bookings.map(booking => `
+                        <tr>
+                            <td>${new Date(booking.createdAt).toLocaleDateString()}</td>
+                            <td>${booking.service?.name || 'Service'}</td>
+                            <td>${booking.staff?.name || 'Not assigned'}</td>
+                            <td>
+                                ${new Date(booking.date).toLocaleDateString()} 
+                                at ${booking.time || 'N/A'}
+                            </td>
+                            <td><strong>${Utils.formatCurrency(booking.service?.price || booking.price || 0)}</strong></td>
+                            <td>
+                                <span class="badge bg-${Utils.getStatusColor(booking.status)}">
+                                    ${booking.status}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" 
+                                        onclick="ReceiptService.generateReceipt('booking', '${booking._id}')">
+                                    <i class="fas fa-receipt"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+                console.log('✅ Rendered bookings:', bookings.length);
+            }
+
+            // Render gifts table
+            const giftsBody = document.getElementById('customerGiftsBody');
+            if (giftsBody) {
+                if (!Array.isArray(gifts) || gifts.length === 0) {
+                    giftsBody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="text-center py-4">
+                                <i class="fas fa-gift fa-2x text-muted mb-3"></i>
+                                <p class="mb-1">No gift orders yet</p>
+                                <small class="text-muted">Send premium gifts to your loved ones</small>
+                                <br>
+                                <button class="btn btn-primary btn-sm mt-2" onclick="UIHelper.showSection('gifts')">
+                                    <i class="fas fa-gift me-1"></i>Send a Gift
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    giftsBody.innerHTML = gifts.map(gift => `
+                        <tr>
+                            <td>${new Date(gift.createdAt).toLocaleDateString()}</td>
+                            <td>${gift.recipientName}</td>
+                            <td>${gift.giftPackage?.name || 'Gift Package'}</td>
+                            <td>${gift.assignedStaff?.name || 'Not assigned'}</td>
+                            <td>${gift.deliveryDate ? new Date(gift.deliveryDate).toLocaleDateString() : 'Not scheduled'}</td>
+                            <td><strong>${Utils.formatCurrency(gift.price || gift.total || gift.giftPackage?.basePrice || 0)}</strong></td>
+                            <td>
+                                <span class="badge bg-${Utils.getStatusColor(gift.status)}">
+                                    ${gift.status}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" 
+                                        onclick="ReceiptService.generateReceipt('gift', '${gift._id}')">
+                                    <i class="fas fa-receipt"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+                console.log('✅ Rendered gifts:', gifts.length);
+            }
+        } catch (error) {
+            console.error('❌ Error rendering tables:', error);
+        }
+    }
+
+    static loadCustomerRecentActivity(orders, bookings, gifts) {
+        try {
+            const activityList = document.getElementById('recentActivityList');
+            if (!activityList) {
+                console.warn('⚠️ recentActivityList not found');
+                return;
+            }
+
+            const allActivities = [
+                ...(Array.isArray(orders) ? orders.map(o => ({ ...o, type: 'order', date: o.createdAt })) : []),
+                ...(Array.isArray(bookings) ? bookings.map(b => ({ ...b, type: 'booking', date: b.date || b.createdAt })) : []),
+                ...(Array.isArray(gifts) ? gifts.map(g => ({ ...g, type: 'gift', date: g.createdAt })) : [])
+            ];
+
+            const sortedActivities = allActivities
+                .filter(a => a.date)
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .slice(0, 5);
+
+            console.log('📊 Recent activities:', sortedActivities.length);
+
+            if (sortedActivities.length === 0) {
+                activityList.innerHTML = `
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                        <p>No recent activity</p>
+                        <small>Start by placing an order or booking a service</small>
+                    </div>
+                `;
+                return;
+            }
+
+            const activityIcons = {
+                'order': 'shopping-bag',
+                'booking': 'calendar-check',
+                'gift': 'gift'
+            };
+
+            const activityColors = {
+                'order': 'primary',
+                'booking': 'success',
+                'gift': 'warning'
+            };
+
+            activityList.innerHTML = sortedActivities.map(activity => `
+                <div class="activity-item d-flex align-items-center mb-3">
+                    <div class="activity-icon me-3">
+                        <i class="fas fa-${activityIcons[activity.type] || 'circle'} text-${activityColors[activity.type] || 'secondary'}"></i>
+                    </div>
+                    <div class="activity-details flex-grow-1">
+                        <div class="fw-bold">${
+                            activity.type === 'order' ? `Order #${activity._id?.toString().slice(-6)}` :
+                            activity.type === 'booking' ? `Booking: ${activity.service?.name || 'Service'}` :
+                            activity.type === 'gift' ? `Gift for ${activity.recipientName || 'Recipient'}` :
+                            'Activity'
+                        }</div>
+                        <small class="text-muted">${new Date(activity.date).toLocaleDateString()}</small>
+                    </div>
+                    <div class="activity-status">
+                        <span class="badge bg-${Utils.getStatusColor(activity.status)}">
+                            ${activity.status || 'pending'}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('❌ Error loading recent activity:', error);
         }
     }
 
@@ -4664,71 +4901,140 @@ function navigateCustomerDashboard(tab) {
 
 // Customer Dashboard Functions
 class CustomerDashboard {
+    static currentOrders = [];
+    static currentBookings = [];
+    static currentGifts = [];
+    
     static async loadCustomerDashboard() {
         try {
+            console.log('🔄 Starting customer dashboard load...');
+            
             // Show loading state
-            document.getElementById('customerDashboardLoading').style.display = 'block';
-            document.getElementById('customerDashboardContent').style.display = 'none';
+            const loadingEl = document.getElementById('customerDashboardLoading');
+            const contentEl = document.getElementById('customerDashboardContent');
+            
+            if (!loadingEl || !contentEl) {
+                console.error('❌ Dashboard elements not found in DOM');
+                return;
+            }
+            
+            loadingEl.style.display = 'block';
+            contentEl.style.display = 'none';
 
-            // Load customer data
-            const [orders, bookings, gifts] = await Promise.all([
-                this.loadCustomerOrders(),
-                this.loadCustomerBookings(),
-                this.loadCustomerGifts()
+            console.log('📡 Loading customer data from API...');
+            
+            // Load customer data with timeout
+            const [orders, bookings, gifts] = await Promise.race([
+                Promise.all([
+                    this.loadCustomerOrders(),
+                    this.loadCustomerBookings(),
+                    this.loadCustomerGifts()
+                ]),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Dashboard data load timeout')), 10000)
+                )
             ]);
 
+            console.log('✅ Loaded dashboard data:', { 
+                ordersCount: Array.isArray(orders) ? orders.length : 0,
+                bookingsCount: Array.isArray(bookings) ? bookings.length : 0,
+                giftsCount: Array.isArray(gifts) ? gifts.length : 0
+            });
+
+            // Ensure data is arrays
+            const safeOrders = Array.isArray(orders) ? orders : [];
+            const safeBookings = Array.isArray(bookings) ? bookings : [];
+            const safeGifts = Array.isArray(gifts) ? gifts : [];
+
+            // Store data in class for pagination
+            this.currentOrders = safeOrders;
+            this.currentBookings = safeBookings;
+            this.currentGifts = safeGifts;
+
             // Update stats
-            this.updateCustomerStats(orders, bookings, gifts);
+            console.log('📊 Updating stats...');
+            this.updateCustomerStats(safeOrders, safeBookings, safeGifts);
+
+            // Render sections with data
+            console.log('🎨 Rendering tables...');
+            this.renderCustomerOrders(safeOrders);
+            this.renderCustomerBookings(safeBookings);
+            this.renderCustomerGifts(safeGifts);
 
             // Load recent activity
-            this.loadRecentActivity(orders, bookings, gifts);
+            console.log('📜 Loading recent activity...');
+            this.loadRecentActivity(safeOrders, safeBookings, safeGifts);
 
-            // Render sections
-            this.renderCustomerOrders(orders);
-            this.renderCustomerBookings(bookings);
-            this.renderCustomerGifts(gifts);
+            // Show Orders section by default
+            console.log('👁️ Showing Orders section...');
+            const ordersSection = document.getElementById('customerOrdersSection');
+            if (ordersSection) {
+                const sections = document.querySelectorAll('.customer-section');
+                sections.forEach(sec => sec.style.display = 'none');
+                ordersSection.style.display = 'block';
+                console.log('✅ Orders section now visible');
+            } else {
+                console.warn('⚠️ customerOrdersSection not found');
+            }
 
-            // Show content
-            document.getElementById('customerDashboardLoading').style.display = 'none';
-            document.getElementById('customerDashboardContent').style.display = 'block';
+            // Show content - CRITICAL: ensure this happens
+            console.log('🔓 Revealing dashboard content...');
+            loadingEl.style.display = 'none';
+            contentEl.style.display = 'block';
+
+            console.log('✅ Customer dashboard loaded successfully!');
 
         } catch (error) {
-            console.error('Error loading customer dashboard:', error);
-            document.getElementById('customerDashboardLoading').innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Failed to load dashboard. Please try again.
-                </div>
-            `;
+            console.error('❌ Error loading customer dashboard:', error);
+            const loadingEl = document.getElementById('customerDashboardLoading');
+            if (loadingEl) {
+                loadingEl.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Failed to load dashboard:</strong> ${error.message}
+                        <br>
+                        <small>Please refresh the page or contact support.</small>
+                    </div>
+                `;
+            }
         }
     }
 
     static async loadCustomerOrders() {
         try {
+            console.log('📡 Fetching orders...');
             const response = await ApiService.get('/dashboard/orders/my-orders');
-            return Array.isArray(response) ? response : (response.orders || response.data || []);
+            const data = Array.isArray(response) ? response : (response.orders || response.data || []);
+            console.log('✅ Orders loaded:', data.length);
+            return data;
         } catch (error) {
-            console.error('Error loading customer orders:', error);
+            console.error('❌ Error loading customer orders:', error);
             return [];
         }
     }
 
     static async loadCustomerBookings() {
         try {
+            console.log('📡 Fetching bookings...');
             const response = await ApiService.get('/dashboard/bookings/my-bookings');
-            return Array.isArray(response) ? response : (response.bookings || response.data || []);
+            const data = Array.isArray(response) ? response : (response.bookings || response.data || []);
+            console.log('✅ Bookings loaded:', data.length);
+            return data;
         } catch (error) {
-            console.error('Error loading customer bookings:', error);
+            console.error('❌ Error loading customer bookings:', error);
             return [];
         }
     }
 
     static async loadCustomerGifts() {
         try {
+            console.log('📡 Fetching gifts...');
             const response = await ApiService.get('/dashboard/gift-orders/my-gifts');
-            return Array.isArray(response) ? response : (response.gifts || response.data || []);
+            const data = Array.isArray(response) ? response : (response.gifts || response.data || []);
+            console.log('✅ Gifts loaded:', data.length);
+            return data;
         } catch (error) {
-            console.error('Error loading customer gifts:', error);
+            console.error('❌ Error loading customer gifts:', error);
             return [];
         }
     }
@@ -4777,9 +5083,15 @@ class CustomerDashboard {
 
     static calculateTotalSpent(orders, bookings, gifts) {
         let total = 0;
-        orders.forEach(order => total += order.finalTotal || order.total || 0);
-        bookings.forEach(booking => total += booking.service?.price || booking.price || 0);
-        gifts.forEach(gift => total += gift.price || gift.total || gift.giftPackage?.basePrice || 0);
+        if (Array.isArray(orders)) {
+            orders.forEach(order => total += order.finalTotal || order.total || 0);
+        }
+        if (Array.isArray(bookings)) {
+            bookings.forEach(booking => total += booking.service?.price || booking.price || 0);
+        }
+        if (Array.isArray(gifts)) {
+            gifts.forEach(gift => total += gift.price || gift.total || gift.giftPackage?.basePrice || 0);
+        }
         return total;
     }
 
@@ -4787,47 +5099,60 @@ class CustomerDashboard {
         const activityList = document.getElementById('recentActivityList');
         
         if (!activityList) {
-            console.warn('recentActivityList element not found');
+            console.warn('⚠️ recentActivityList element not found');
             return;
         }
 
-        const allActivities = [
-            ...orders.map(o => ({ ...o, type: 'order', date: o.createdAt })),
-            ...bookings.map(b => ({ ...b, type: 'booking', date: b.date || b.createdAt })),
-            ...gifts.map(g => ({ ...g, type: 'gift', date: g.createdAt }))
-        ];
+        try {
+            const allActivities = [
+                ...(Array.isArray(orders) ? orders.map(o => ({ ...o, type: 'order', date: o.createdAt })) : []),
+                ...(Array.isArray(bookings) ? bookings.map(b => ({ ...b, type: 'booking', date: b.date || b.createdAt })) : []),
+                ...(Array.isArray(gifts) ? gifts.map(g => ({ ...g, type: 'gift', date: g.createdAt })) : [])
+            ];
 
-        const sortedActivities = allActivities
-            .sort((a, b) => new Date(b.date) - new Date(a.date))
-            .slice(0, 5);
+            const sortedActivities = allActivities
+                .filter(a => a.date)
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .slice(0, 5);
 
-        if (sortedActivities.length === 0) {
+            console.log('📊 Recent activities:', sortedActivities.length);
+
+            if (sortedActivities.length === 0) {
+                activityList.innerHTML = `
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                        <p>No recent activity</p>
+                        <small>Start by placing an order or booking a service</small>
+                    </div>
+                `;
+                return;
+            }
+
+            activityList.innerHTML = sortedActivities.map(activity => `
+                <div class="activity-item d-flex align-items-center mb-3">
+                    <div class="activity-icon me-3">
+                        <i class="fas fa-${this.getActivityIcon(activity.type)} text-${this.getActivityColor(activity.type)}"></i>
+                    </div>
+                    <div class="activity-details flex-grow-1">
+                        <div class="fw-bold">${this.getActivityTitle(activity)}</div>
+                        <small class="text-muted">${new Date(activity.date).toLocaleDateString()}</small>
+                    </div>
+                    <div class="activity-status">
+                        <span class="badge bg-${Utils.getStatusColor(activity.status)}">
+                            ${activity.status || 'pending'}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('❌ Error rendering recent activity:', error);
             activityList.innerHTML = `
                 <div class="text-center text-muted py-3">
-                    <i class="fas fa-inbox fa-2x mb-2"></i>
-                    <p>No recent activity</p>
-                    <small>Start by placing an order or booking a service</small>
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <p>Failed to load recent activities</p>
                 </div>
             `;
-            return;
         }
-
-        activityList.innerHTML = sortedActivities.map(activity => `
-            <div class="activity-item d-flex align-items-center mb-3">
-                <div class="activity-icon me-3">
-                    <i class="fas fa-${this.getActivityIcon(activity.type)} text-${this.getActivityColor(activity.type)}"></i>
-                </div>
-                <div class="activity-details flex-grow-1">
-                    <div class="fw-bold">${this.getActivityTitle(activity)}</div>
-                    <small class="text-muted">${new Date(activity.date).toLocaleDateString()}</small>
-                </div>
-                <div class="activity-status">
-                    <span class="badge bg-${Utils.getStatusColor(activity.status)}">
-                        ${activity.status || 'pending'}
-                    </span>
-                </div>
-            </div>
-        `).join('');
     }
 
     static getActivityIcon(type) {
@@ -4853,11 +5178,11 @@ class CustomerDashboard {
     static getActivityTitle(activity) {
         switch (activity.type) {
             case 'order':
-                return `Order #${activity._id?.toString().slice(-6)}`;
+                return `Order #${activity._id?.toString().slice(-6) || 'N/A'}`;
             case 'booking':
                 return `Booking: ${activity.service?.name || 'Service'}`;
             case 'gift':
-                return `Gift for ${activity.recipientName}`;
+                return `Gift for ${activity.recipientName || 'Recipient'}`;
             case 'login':
                 return `Last login: ${activity.user?.name || activity.user?.email || 'User'}`;
             default:
@@ -4866,113 +5191,172 @@ class CustomerDashboard {
     }
 
     static renderCustomerOrders(orders) {
-        const tbody = document.getElementById('customerOrdersBody');
+        const table = document.querySelector('.orders-table');
 
-        if (orders.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="text-center py-4">
-                        <i class="fas fa-shopping-bag fa-2x text-muted mb-3"></i>
-                        <p class="mb-1">No orders yet</p>
-                        <small class="text-muted">Start shopping in our premium collection</small>
-                        <br>
-                        <button class="btn btn-primary btn-sm mt-2" onclick="UIHelper.showSection('shop')">
-                            <i class="fas fa-shopping-cart me-1"></i>Start Shopping
-                        </button>
-                    </td>
-                </tr>
-            `;
+        if (!table) {
+            console.warn('⚠️ orders table not found');
             return;
         }
 
-        tbody.innerHTML = orders.map(order => `
+        // Use the pagination method which handles empty state and pagination
+        this.populateOrdersTable(table, orders, 1);
+    }
+
+    static renderCustomerBookings(bookings) {
+        const table = document.querySelector('.bookings-table');
+
+        if (!table) {
+            console.warn('⚠️ bookings table not found');
+            return;
+        }
+
+        // Use the pagination method which handles empty state and pagination
+        this.populateBookingsTable(table, bookings, 1);
+    }
+
+    static renderCustomerGifts(gifts) {
+        const table = document.querySelector('.gifts-table');
+
+        if (!table) {
+            console.warn('⚠️ gifts table not found');
+            return;
+        }
+
+        // Use the pagination method which handles empty state and pagination
+        this.populateGiftsTable(table, gifts, 1);
+    }
+
+    // Pagination methods for customer dashboard tables
+    static populateOrdersTable(table, orders, pageNum = 1) {
+        const tbody = table.querySelector('tbody');
+        if (!tbody) {
+            console.warn('❌ No tbody found in orders table');
+            return;
+        }
+
+        const rowsPerPage = 10;
+        if (!orders || orders.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-shopping-cart fa-2x mb-2 d-block"></i>No orders found</td></tr>`;
+            return;
+        }
+
+        const totalPages = Math.ceil(orders.length / rowsPerPage);
+        const startIdx = (pageNum - 1) * rowsPerPage;
+        const paginatedOrders = orders.slice(startIdx, startIdx + rowsPerPage);
+
+        tbody.innerHTML = paginatedOrders.map(order => `
             <tr>
                 <td>${new Date(order.createdAt).toLocaleDateString()}</td>
                 <td><strong>#${order._id.toString().slice(-6)}</strong></td>
                 <td>${order.items?.length || 0} items</td>
                 <td>${order.processedBy?.name || 'Not assigned'}</td>
                 <td><strong>${Utils.formatCurrency(order.finalTotal || order.total || 0)}</strong></td>
-                <td>
-                    <span class="badge bg-${Utils.getStatusColor(order.status)}">
-                        ${order.status}
-                    </span>
-                </td>
-                <td>
-                    <button class="btn btn-sm btn-outline-primary" 
-                            onclick="ReceiptService.generateReceipt('order', '${order._id}')">
-                        <i class="fas fa-receipt"></i>
-                    </button>
-                </td>
+                <td><span class="badge bg-${Utils.getStatusColor(order.status)}">${order.status}</span></td>
+                <td><button class="btn btn-sm btn-outline-primary" onclick="ReceiptService.generateReceipt('order', '${order._id}')"><i class="fas fa-receipt"></i></button></td>
             </tr>
         `).join('');
+
+        // Add pagination controls
+        const tfoot = table.querySelector('tfoot') || document.createElement('tfoot');
+        if (!table.querySelector('tfoot')) table.appendChild(tfoot);
+        
+        let paginationHTML = '<tr><td colspan="7" class="text-center"><nav><ul class="pagination pagination-sm justify-content-center mb-0">';
+        if (pageNum > 1) {
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="1">First</button></li>`;
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${pageNum-1}">«</button></li>`;
+        }
+        for (let i = 1; i <= totalPages; i++) {
+            const activeClass = i === pageNum ? 'active' : '';
+            paginationHTML += `<li class="page-item ${activeClass}"><button class="page-link" data-page="${i}">${i}</button></li>`;
+        }
+        if (pageNum < totalPages) {
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${pageNum+1}">»</button></li>`;
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${totalPages}">Last</button></li>`;
+        }
+        paginationHTML += '</ul></nav></td></tr>';
+        tfoot.innerHTML = paginationHTML;
+        
+        tfoot.querySelectorAll('button[data-page]').forEach(btn => {
+            btn.addEventListener('click', (e) => handlePaginationClick(e, '.orders-table', 'orders'));
+        });
+        
+        console.log(`✅ Populated orders table with ${orders.length} total orders (page ${pageNum} of ${totalPages})`);
     }
 
-    static renderCustomerBookings(bookings) {
-        const tbody = document.getElementById('customerBookingsBody');
-
-        if (bookings.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="text-center py-4">
-                        <i class="fas fa-calendar fa-2x text-muted mb-3"></i>
-                        <p class="mb-1">No bookings yet</p>
-                        <small class="text-muted">Book our luxury services</small>
-                        <br>
-                        <button class="btn btn-primary btn-sm mt-2" onclick="UIHelper.showSection('services')">
-                            <i class="fas fa-calendar-plus me-1"></i>Book Service
-                        </button>
-                    </td>
-                </tr>
-            `;
+    static populateBookingsTable(table, bookings, pageNum = 1) {
+        const tbody = table.querySelector('tbody');
+        if (!tbody) {
+            console.warn('❌ No tbody found in bookings table');
             return;
         }
 
-        tbody.innerHTML = bookings.map(booking => `
+        const rowsPerPage = 10;
+        if (!bookings || bookings.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-calendar fa-2x mb-2 d-block"></i>No bookings found</td></tr>`;
+            return;
+        }
+
+        const totalPages = Math.ceil(bookings.length / rowsPerPage);
+        const startIdx = (pageNum - 1) * rowsPerPage;
+        const paginatedBookings = bookings.slice(startIdx, startIdx + rowsPerPage);
+
+        tbody.innerHTML = paginatedBookings.map(booking => `
             <tr>
                 <td>${new Date(booking.createdAt).toLocaleDateString()}</td>
                 <td>${booking.service?.name || 'Service'}</td>
                 <td>${booking.staff?.name || 'Not assigned'}</td>
-                <td>
-                    ${new Date(booking.date).toLocaleDateString()} 
-                    at ${booking.time || 'N/A'}
-                </td>
+                <td>${new Date(booking.date).toLocaleDateString()} at ${booking.time || 'N/A'}</td>
                 <td><strong>${Utils.formatCurrency(booking.service?.price || booking.price || 0)}</strong></td>
-                <td>
-                    <span class="badge bg-${Utils.getStatusColor(booking.status)}">
-                        ${booking.status}
-                    </span>
-                </td>
-                <td>
-                    <button class="btn btn-sm btn-outline-primary" 
-                            onclick="ReceiptService.generateReceipt('booking', '${booking._id}')">
-                        <i class="fas fa-receipt"></i>
-                    </button>
-                </td>
+                <td><span class="badge bg-${Utils.getStatusColor(booking.status)}">${booking.status}</span></td>
+                <td><button class="btn btn-sm btn-outline-primary" onclick="ReceiptService.generateReceipt('booking', '${booking._id}')"><i class="fas fa-receipt"></i></button></td>
             </tr>
         `).join('');
+
+        // Add pagination controls
+        const tfoot = table.querySelector('tfoot') || document.createElement('tfoot');
+        if (!table.querySelector('tfoot')) table.appendChild(tfoot);
+        
+        let paginationHTML = '<tr><td colspan="7" class="text-center"><nav><ul class="pagination pagination-sm justify-content-center mb-0">';
+        if (pageNum > 1) {
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="1">First</button></li>`;
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${pageNum-1}">«</button></li>`;
+        }
+        for (let i = 1; i <= totalPages; i++) {
+            const activeClass = i === pageNum ? 'active' : '';
+            paginationHTML += `<li class="page-item ${activeClass}"><button class="page-link" data-page="${i}">${i}</button></li>`;
+        }
+        if (pageNum < totalPages) {
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${pageNum+1}">»</button></li>`;
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${totalPages}">Last</button></li>`;
+        }
+        paginationHTML += '</ul></nav></td></tr>';
+        tfoot.innerHTML = paginationHTML;
+        
+        tfoot.querySelectorAll('button[data-page]').forEach(btn => {
+            btn.addEventListener('click', (e) => handlePaginationClick(e, '.bookings-table', 'bookings'));
+        });
+        
+        console.log(`✅ Populated bookings table with ${bookings.length} total bookings (page ${pageNum} of ${totalPages})`);
     }
 
-    static renderCustomerGifts(gifts) {
-        const tbody = document.getElementById('customerGiftsBody');
-
-        if (gifts.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="8" class="text-center py-4">
-                        <i class="fas fa-gift fa-2x text-muted mb-3"></i>
-                        <p class="mb-1">No gift orders yet</p>
-                        <small class="text-muted">Send premium gifts to your loved ones</small>
-                        <br>
-                        <button class="btn btn-primary btn-sm mt-2" onclick="UIHelper.showSection('giftPackages')">
-                            <i class="fas fa-gift me-1"></i>Send a Gift
-                        </button>
-                    </td>
-                </tr>
-            `;
+    static populateGiftsTable(table, giftOrders, pageNum = 1) {
+        const tbody = table.querySelector('tbody');
+        if (!tbody) {
+            console.warn('❌ No tbody found in gifts table');
             return;
         }
 
-        tbody.innerHTML = gifts.map(gift => `
+        const rowsPerPage = 10;
+        if (!giftOrders || giftOrders.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-gift fa-2x mb-2 d-block"></i>No gift orders found</td></tr>`;
+            return;
+        }
+
+        const totalPages = Math.ceil(giftOrders.length / rowsPerPage);
+        const startIdx = (pageNum - 1) * rowsPerPage;
+        const paginatedGifts = giftOrders.slice(startIdx, startIdx + rowsPerPage);
+
+        tbody.innerHTML = paginatedGifts.map(gift => `
             <tr>
                 <td>${new Date(gift.createdAt).toLocaleDateString()}</td>
                 <td>${gift.recipientName}</td>
@@ -4980,19 +5364,61 @@ class CustomerDashboard {
                 <td>${gift.assignedStaff?.name || 'Not assigned'}</td>
                 <td>${gift.deliveryDate ? new Date(gift.deliveryDate).toLocaleDateString() : 'Not scheduled'}</td>
                 <td><strong>${Utils.formatCurrency(gift.price || gift.total || gift.giftPackage?.basePrice || 0)}</strong></td>
-                <td>
-                    <span class="badge bg-${Utils.getStatusColor(gift.status)}">
-                        ${gift.status}
-                    </span>
-                </td>
-                <td>
-                    <button class="btn btn-sm btn-outline-primary" 
-                            onclick="ReceiptService.generateReceipt('gift', '${gift._id}')">
-                        <i class="fas fa-receipt"></i>
-                    </button>
-                </td>
+                <td><span class="badge bg-${Utils.getStatusColor(gift.status)}">${gift.status}</span></td>
+                <td><button class="btn btn-sm btn-outline-primary" onclick="ReceiptService.generateReceipt('gift', '${gift._id}')"><i class="fas fa-receipt"></i></button></td>
             </tr>
         `).join('');
+
+        // Add pagination controls
+        const tfoot = table.querySelector('tfoot') || document.createElement('tfoot');
+        if (!table.querySelector('tfoot')) table.appendChild(tfoot);
+        
+        let paginationHTML = '<tr><td colspan="8" class="text-center"><nav><ul class="pagination pagination-sm justify-content-center mb-0">';
+        if (pageNum > 1) {
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="1">First</button></li>`;
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${pageNum-1}">«</button></li>`;
+        }
+        for (let i = 1; i <= totalPages; i++) {
+            const activeClass = i === pageNum ? 'active' : '';
+            paginationHTML += `<li class="page-item ${activeClass}"><button class="page-link" data-page="${i}">${i}</button></li>`;
+        }
+        if (pageNum < totalPages) {
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${pageNum+1}">»</button></li>`;
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${totalPages}">Last</button></li>`;
+        }
+        paginationHTML += '</ul></nav></td></tr>';
+        tfoot.innerHTML = paginationHTML;
+        
+        tfoot.querySelectorAll('button[data-page]').forEach(btn => {
+            btn.addEventListener('click', (e) => handlePaginationClick(e, '.gifts-table', 'gifts'));
+        });
+        
+        console.log(`✅ Populated gifts table with ${giftOrders.length} total gifts (page ${pageNum} of ${totalPages})`);
+    }
+}
+
+// Global pagination handler function
+function handlePaginationClick(e, tableSelector, tableType) {
+    if (!e.target.dataset.page) return;
+    
+    e.preventDefault();
+    const newPage = parseInt(e.target.dataset.page);
+    const table = document.querySelector(tableSelector);
+    
+    if (!table) {
+        console.error(`❌ Cannot find ${tableType} table`);
+        return;
+    }
+    
+    // Call the appropriate method based on table type
+    if (tableType === 'orders' && CustomerDashboard.currentOrders) {
+        CustomerDashboard.populateOrdersTable(table, CustomerDashboard.currentOrders, newPage);
+    } else if (tableType === 'bookings' && CustomerDashboard.currentBookings) {
+        CustomerDashboard.populateBookingsTable(table, CustomerDashboard.currentBookings, newPage);
+    } else if (tableType === 'gifts' && CustomerDashboard.currentGifts) {
+        CustomerDashboard.populateGiftsTable(table, CustomerDashboard.currentGifts, newPage);
+    } else {
+        console.error(`❌ Cannot find data for ${tableType} or method doesn't exist`);
     }
 }
 
@@ -5044,6 +5470,126 @@ function refreshCustomerGifts() {
         CustomerDashboard.renderCustomerGifts(gifts);
         Utils.showNotification('Gifts refreshed', 'success');
     });
+}
+
+function printCustomerOrders() {
+    const ordersTable = document.getElementById('customerOrdersTable');
+    if (!ordersTable) {
+        Utils.showNotification('No orders table found', 'error');
+        return;
+    }
+
+    const printWindow = window.open('', '', 'height=600,width=800');
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>My Orders - Tassel Group</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                h1 { color: #8B6F47; text-align: center; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th { background-color: #8B6F47; color: white; padding: 10px; text-align: left; }
+                td { border: 1px solid #ddd; padding: 10px; }
+                tr:nth-child(even) { background-color: #f9f9f9; }
+                .print-date { text-align: right; margin-top: 20px; font-size: 12px; color: #666; }
+            </style>
+        </head>
+        <body>
+            <h1>My Orders</h1>
+            <p><strong>Customer:</strong> ${Utils.getCurrentUser()?.name || 'N/A'}</p>
+            ${ordersTable.outerHTML}
+            <div class="print-date">Printed on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+        </body>
+        </html>
+    `;
+    
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    
+    setTimeout(() => {
+        printWindow.print();
+    }, 250);
+}
+
+function printCustomerBookings() {
+    const bookingsTable = document.getElementById('customerBookingsTable');
+    if (!bookingsTable) {
+        Utils.showNotification('No bookings table found', 'error');
+        return;
+    }
+
+    const printWindow = window.open('', '', 'height=600,width=800');
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>My Bookings - Tassel Group</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                h1 { color: #8B6F47; text-align: center; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th { background-color: #8B6F47; color: white; padding: 10px; text-align: left; }
+                td { border: 1px solid #ddd; padding: 10px; }
+                tr:nth-child(even) { background-color: #f9f9f9; }
+                .print-date { text-align: right; margin-top: 20px; font-size: 12px; color: #666; }
+            </style>
+        </head>
+        <body>
+            <h1>My Bookings</h1>
+            <p><strong>Customer:</strong> ${Utils.getCurrentUser()?.name || 'N/A'}</p>
+            ${bookingsTable.outerHTML}
+            <div class="print-date">Printed on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+        </body>
+        </html>
+    `;
+    
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    
+    setTimeout(() => {
+        printWindow.print();
+    }, 250);
+}
+
+function printCustomerGifts() {
+    const giftsTable = document.getElementById('customerGiftsTable');
+    if (!giftsTable) {
+        Utils.showNotification('No gifts table found', 'error');
+        return;
+    }
+
+    const printWindow = window.open('', '', 'height=600,width=800');
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>My Gifts - Tassel Group</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                h1 { color: #8B6F47; text-align: center; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th { background-color: #8B6F47; color: white; padding: 10px; text-align: left; }
+                td { border: 1px solid #ddd; padding: 10px; }
+                tr:nth-child(even) { background-color: #f9f9f9; }
+                .print-date { text-align: right; margin-top: 20px; font-size: 12px; color: #666; }
+            </style>
+        </head>
+        <body>
+            <h1>My Gifts</h1>
+            <p><strong>Customer:</strong> ${Utils.getCurrentUser()?.name || 'N/A'}</p>
+            ${giftsTable.outerHTML}
+            <div class="print-date">Printed on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+        </body>
+        </html>
+    `;
+    
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    
+    setTimeout(() => {
+        printWindow.print();
+    }, 250);
 }
 
 // Update the showCustomerSection function
@@ -6584,7 +7130,7 @@ class ServiceManagementService {
                             <div class="col-md-4">
                                 <div class="card text-center bg-warning text-white">
                                     <div class="card-body">
-                                        <h3>$${services.reduce((sum, s) => sum + (s.price || 0), 0).toFixed(2)}</h3>
+                                        <h3>R${services.reduce((sum, s) => sum + (s.price || 0), 0).toFixed(2)}</h3>
                                         <p class="mb-0">Total Value</p>
                                     </div>
                                 </div>
@@ -6658,7 +7204,7 @@ class ServiceManagementService {
             <tr>
                 <td><strong>${this.escapeHtml(service.name || 'N/A')}</strong></td>
                 <td>${this.escapeHtml(service.category || 'General')}</td>
-                <td>$${(service.price || 0).toFixed(2)}</td>
+                <td>R${(service.price || 0).toFixed(2)}</td>
                 <td>${service.duration || '-'}</td>
                 <td>
                     <span class="badge ${service.available !== false ? 'bg-success' : 'bg-danger'}">
@@ -6677,14 +7223,27 @@ class ServiceManagementService {
         `).join('');
     }
 
-    static escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+    static extractCategoriesArray(data) {
+        if (!data) return [];
+        if (Array.isArray(data)) return data;
+        if (data.categories && Array.isArray(data.categories)) return data.categories;
+        if (data.data && Array.isArray(data.data)) return data.data;
+        return [];
     }
 
     static async showCreateServiceModal() {
-        const modalHtml = `
+        try {
+            // Load categories
+            let categories = [];
+            try {
+                const categoriesResponse = await ApiService.get('/categories');
+                categories = this.extractCategoriesArray(categoriesResponse);
+            } catch (e) {
+                console.warn('⚠️ Could not load categories:', e);
+                categories = [];
+            }
+
+            const modalHtml = `
         <div class="modal fade" id="createServiceModal" tabindex="-1" aria-labelledby="createServiceModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
@@ -6706,7 +7265,10 @@ class ServiceManagementService {
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="serviceCategory" class="form-label">Category</label>
-                                        <input type="text" class="form-control" id="serviceCategory" name="category" placeholder="e.g., Facial">
+                                        <select class="form-select" id="serviceCategory" name="category">
+                                            <option value="">Select a category</option>
+                                            ${categories.map(cat => `<option value="${this.escapeHtml(cat.toLowerCase())}">${this.escapeHtml(cat)}</option>`).join('')}
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -6717,7 +7279,7 @@ class ServiceManagementService {
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label for="servicePrice" class="form-label">Price ($) *</label>
+                                        <label for="servicePrice" class="form-label">Price (R) *</label>
                                         <input type="number" class="form-control" id="servicePrice" name="price" step="0.01" min="0" required>
                                     </div>
                                 </div>
@@ -6746,22 +7308,26 @@ class ServiceManagementService {
             </div>
         `;
 
-        // Remove existing modal if any
-        const existingModal = document.getElementById('createServiceModal');
-        if (existingModal) {
-            existingModal.remove();
+            // Remove existing modal if any
+            const existingModal = document.getElementById('createServiceModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Add modal to DOM
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            // Add form submission handler
+            const form = document.getElementById('createServiceForm');
+            form.addEventListener('submit', (e) => this.handleCreateService(e));
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('createServiceModal'));
+            modal.show();
+        } catch (error) {
+            console.error('Error showing create service modal:', error);
+            Utils.showNotification('Failed to load create service form', 'error');
         }
-
-        // Add modal to DOM
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-        // Add form submission handler
-        const form = document.getElementById('createServiceForm');
-        form.addEventListener('submit', (e) => this.handleCreateService(e));
-
-        // Show modal
-        const modal = new bootstrap.Modal(document.getElementById('createServiceModal'));
-        modal.show();
     }
 
     static async handleCreateService(e) {
@@ -6807,6 +7373,16 @@ class ServiceManagementService {
         try {
             const service = await ApiService.get(`/services/${serviceId}`);
 
+            // Load categories
+            let categories = [];
+            try {
+                const categoriesResponse = await ApiService.get('/categories');
+                categories = this.extractCategoriesArray(categoriesResponse);
+            } catch (e) {
+                console.warn('⚠️ Could not load categories:', e);
+                categories = [];
+            }
+
             const modalHtml = `
             <div class="modal fade" id="editServiceModal" tabindex="-1" aria-labelledby="editServiceModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-lg">
@@ -6828,8 +7404,10 @@ class ServiceManagementService {
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label for="editServiceCategory" class="form-label">Category</label>
-                                            <input type="text" class="form-control" id="editServiceCategory" name="category" 
-                                                   value="${this.escapeHtml(service.category || '')}">
+                                            <select class="form-select" id="editServiceCategory" name="category">
+                                                <option value="">Select a category</option>
+                                                ${categories.map(cat => `<option value="${this.escapeHtml(cat.toLowerCase())}" ${service.category?.toLowerCase() === cat.toLowerCase() ? 'selected' : ''}>${this.escapeHtml(cat)}</option>`).join('')}
+                                            </select>
                                         </div>
                                     </div>
                                 </div>
@@ -6840,7 +7418,7 @@ class ServiceManagementService {
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label for="editServicePrice" class="form-label">Price ($) *</label>
+                                            <label for="editServicePrice" class="form-label">Price (R) *</label>
                                             <input type="number" class="form-control" id="editServicePrice" name="price" 
                                                    value="${service.price}" step="0.01" min="0" required>
                                         </div>
@@ -6967,6 +7545,12 @@ class ServiceManagementService {
 
         document.getElementById('servicesTableBody').innerHTML = this.generateServicesTableRows(filteredServices);
     }
+
+    static escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 }
 
 
@@ -7056,13 +7640,33 @@ class AdminService {
     static showVouchersManagementModal(vouchers, users) {
         const now = new Date();
 
-        console.log('Raw vouchers received by modal:', vouchers);
+        // Normalize inputs: ensure vouchers and users are arrays regardless of API shape
+        const normalizeArray = (input, fallback = []) => {
+            if (Array.isArray(input)) return input;
+            if (!input) return fallback;
+            if (Array.isArray(input.data)) return input.data;
+            if (Array.isArray(input.vouchers)) return input.vouchers;
+            if (Array.isArray(input.value)) return input.value;
+            if (Array.isArray(input.items)) return input.items;
+            return fallback;
+        };
+
+        vouchers = normalizeArray(vouchers, []);
+        users = normalizeArray(users, []);
+
+        console.log('Raw vouchers received by modal (normalized):', vouchers);
         vouchers.forEach(v => {
             console.log(
                 `Voucher ${v._id} code=${v.code} isActive=${v.isActive} validUntil=${v.validUntil} used=${v.used} assignedTo=${v.assignedTo}`
             );
         });
 
+
+        // Normalize voucher fields (ensure assignedTo is an ID string when populated)
+        const getAssignedId = (v) => {
+            if (!v || !v.assignedTo) return null;
+            return (typeof v.assignedTo === 'object') ? (v.assignedTo._id || v.assignedTo) : v.assignedTo;
+        };
 
         // Expired = validUntil in the past but still active and unused
         const expiredVouchers = vouchers.filter(v => new Date(v.validUntil) < now && v.isActive && !v.used);
@@ -7094,11 +7698,13 @@ class AdminService {
 
         // By user type (assignments may also be used)
         const customerVouchers = vouchers.filter(v => {
-            const user = users.find(u => u._id === v.assignedTo);
+            const assignedId = getAssignedId(v);
+            const user = users.find(u => u._id === assignedId);
             return user && user.role === 'customer';
         });
         const staffVouchers = vouchers.filter(v => {
-            const user = users.find(u => u._id === v.assignedTo);
+            const assignedId = getAssignedId(v);
+            const user = users.find(u => u._id === assignedId);
             return user && user.role === 'staff';
         });
 
@@ -7322,14 +7928,14 @@ class AdminService {
 
     static calculateTotalVoucherValue(vouchers) {
         const total = vouchers.reduce((sum, voucher) => {
-            if (voucher.discountType === 'percentage') {
-                return sum + (voucher.value || 0);
+            if (voucher.type === 'percentage') {
+                return sum + (Number(voucher.discount) || 0);
             } else {
-                return sum + (voucher.value || 0);
+                return sum + (Number(voucher.discount) || 0);
             }
         }, 0);
 
-        return vouchers.length > 0 && vouchers[0].discountType !== 'percentage'
+        return vouchers.length > 0 && vouchers[0].type !== 'percentage'
             ? Utils.formatCurrency(total)
             : `${total}% total`;
     }
@@ -7352,18 +7958,28 @@ class AdminService {
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Discount Type</label>
-                                <select name="discountType" class="form-select">
-                                    <option value="fixed">Fixed Amount</option>
-                                    <option value="percentage">Percentage</option>
+                                <select name="type" class="form-select" required>
+                                    <option value="">Select Type</option>
+                                    <option value="fixed">Fixed Amount (R)</option>
+                                    <option value="percentage">Percentage (%)</option>
                                 </select>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Value</label>
-                                <input type="number" name="value" class="form-control" required>
+                                <label class="form-label">Discount Value</label>
+                                <input type="number" name="discount" class="form-control" step="0.01" min="0" required>
+                                <small class="form-text text-muted">Enter amount in Rands or percentage</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Maximum Uses</label>
+                                <input type="number" name="maxUses" class="form-control" min="1" value="1" required>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Expiry Date</label>
-                                <input type="date" name="expires" class="form-control" required>
+                                <input type="date" name="validUntil" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Description (Optional)</label>
+                                <textarea name="description" class="form-control" rows="2"></textarea>
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -7383,11 +7999,36 @@ class AdminService {
         document.getElementById('createVoucherForm').onsubmit = async (e) => {
             e.preventDefault();
             const form = e.target;
+            // Validate form before submission
+            if (!form.type.value) {
+                Utils.showNotification('Please select a discount type', 'error');
+                return;
+            }
+            
+            const discount = parseFloat(form.discount.value);
+            if (discount <= 0) {
+                Utils.showNotification('Discount must be greater than 0', 'error');
+                return;
+            }
+            
+            if (form.type.value === 'percentage' && discount > 100) {
+                Utils.showNotification('Percentage discount cannot exceed 100%', 'error');
+                return;
+            }
+            
+            const expiryDate = new Date(form.validUntil.value);
+            if (expiryDate <= new Date()) {
+                Utils.showNotification('Expiry date must be in the future', 'error');
+                return;
+            }
+            
             const data = {
-                code: form.code.value,
-                discountType: form.discountType.value,
-                value: form.value.value,
-                expires: form.expires.value
+                code: form.code.value.trim(),
+                type: form.type.value,
+                discount: discount,
+                maxUses: parseInt(form.maxUses.value),
+                validUntil: form.validUntil.value,
+                description: form.description.value.trim() || ''
             };
             try {
                 await ApiService.post('/vouchers', data);
@@ -7402,8 +8043,8 @@ class AdminService {
     }
 
 
-    static bulkAssignVouchers() {
-        // Show a modal to select users and assign a voucher (modal HTML needs to be created)
+    static async bulkAssignVouchers() {
+        // Show a modal to select users and assign a voucher
         document.getElementById('bulkAssignModal')?.remove();
         const modalHTML = `
         <div class="modal fade" id="bulkAssignModal" tabindex="-1">
@@ -7415,18 +8056,22 @@ class AdminService {
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
-                            <label>Select users (Ctrl+Click):</label>
-                            <select multiple name="userIds" class="form-select" required>
-                                <!-- Option generation with JS -->
-                            </select>
-                            <label>Select voucher:</label>
-                            <select name="voucherId" class="form-select" required>
-                                <!-- Option generation with JS -->
-                            </select>
+                            <div class="mb-3">
+                                <label class="form-label">Select Staff Members (Ctrl+Click to select multiple):</label>
+                                <select multiple name="userIds" class="form-select" id="userIdsSelect" required>
+                                </select>
+                                <small class="form-text text-muted">Hold Ctrl and click to select multiple staff</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Select Voucher to Assign:</label>
+                                <select name="voucherId" class="form-select" id="voucherIdSelect" required>
+                                    <option value="">Loading vouchers...</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Assign</button>
+                            <button type="submit" class="btn btn-primary">Assign to Selected Staff</button>
                         </div>
                     </form>
                 </div>
@@ -7434,18 +8079,70 @@ class AdminService {
         </div>
     `;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
-        // Populate selects with users and vouchers (fetch via API)
-        // ...insert JS population code here...
+        
+        // Load users and vouchers data from API
+        try {
+            const [usersResponse, vouchersResponse] = await Promise.all([
+                ApiService.get('/users'),
+                ApiService.get('/vouchers')
+            ]);
+            
+            const users = Array.isArray(usersResponse) ? usersResponse : usersResponse.data || [];
+            const vouchers = Array.isArray(vouchersResponse) ? vouchersResponse : vouchersResponse.data || [];
+            
+            // Populate staff users select (filter for staff/admin roles if needed)
+            const userSelect = document.getElementById('userIdsSelect');
+            const staffUsers = users.filter(u => u.role === 'staff' || u.role === 'admin');
+            
+            if (staffUsers.length === 0) {
+                userSelect.innerHTML = '<option value="">No staff members found</option>';
+            } else {
+                userSelect.innerHTML = staffUsers.map(user => 
+                    `<option value="${user._id}">${user.name} (${user.email})</option>`
+                ).join('');
+            }
+            
+            // Populate vouchers select with active vouchers
+            const voucherSelect = document.getElementById('voucherIdSelect');
+            const activeVouchers = vouchers.filter(v => v.isActive);
+            
+            if (activeVouchers.length === 0) {
+                voucherSelect.innerHTML = '<option value="">No active vouchers found</option>';
+            } else {
+                voucherSelect.innerHTML = `<option value="">Select a voucher</option>` + 
+                    activeVouchers.map(v => {
+                        const remaining = v.maxUses - v.used;
+                        return `<option value="${v._id}">${v.code} (${v.type === 'percentage' ? v.discount + '%' : 'R' + v.discount}) - ${remaining} uses left</option>`;
+                    }).join('');
+            }
+        } catch (error) {
+            Utils.showNotification('Error loading data: ' + error.message, 'error');
+            document.getElementById('bulkAssignModal')?.remove();
+            return;
+        }
+        
+        // Form submission handler
         document.getElementById('bulkAssignForm').onsubmit = async (e) => {
             e.preventDefault();
             const form = e.target;
             const userIds = [...form.userIds.selectedOptions].map(opt => opt.value);
             const voucherId = form.voucherId.value;
+            
+            if (!userIds.length) {
+                Utils.showNotification('Please select at least one staff member', 'error');
+                return;
+            }
+            
+            if (!voucherId) {
+                Utils.showNotification('Please select a voucher', 'error');
+                return;
+            }
+            
             try {
-                await ApiService.post(`/vouchers/bulk-assign`, { userIds, voucherId });
-                Utils.showNotification('Vouchers assigned!', 'success');
+                await ApiService.post('/vouchers/bulk-assign', { voucherId, userIds });
+                Utils.showNotification(`Voucher assigned to ${userIds.length} staff member(s)!`, 'success');
                 bootstrap.Modal.getInstance(form.closest('.modal')).hide();
-                AdminService.loadAdminManagementTables();
+                AdminService.showVouchersManagement();
             } catch (error) {
                 Utils.showNotification('Bulk assign failed: ' + error.message, 'error');
             }
@@ -7575,8 +8272,7 @@ class AdminService {
     }
 
     static async assignVoucher(voucherId) {
-        // Show a modal for choosing a user, then assign
-        // Or assign the current selected user directly:
+        // Legacy quick-assign using currently selected user (kept for backward-compatibility)
         try {
             const userId = window.currentSelectedUser?._id;
             if (!userId) throw new Error('No user selected');
@@ -7588,8 +8284,30 @@ class AdminService {
         }
     }
 
+    // Open assign modal by voucher id (fetches latest voucher and staff list)
+    static async showAssignUserModalById(voucherId) {
+        try {
+            const [vouchersResp, usersResp] = await Promise.all([
+                ApiService.get('/vouchers'),
+                ApiService.get('/users')
+            ]);
+
+            const vouchers = Array.isArray(vouchersResp) ? vouchersResp : (vouchersResp.data || vouchersResp.vouchers || []);
+            const users = Array.isArray(usersResp) ? usersResp : (usersResp.data || []);
+
+            const voucher = vouchers.find(v => (v._id || v.id) == voucherId);
+            if (!voucher) throw new Error('Voucher not found');
+
+            const staffList = users.filter(u => u.role === 'staff' || u.role === 'admin');
+            AdminService.showAssignUserModal(voucher, staffList);
+        } catch (error) {
+            Utils.showNotification('Failed to open assign modal: ' + error.message, 'error');
+        }
+    }
+
     static async showAssignUserModal(voucher, staffList) {
         document.getElementById('assignUserModal')?.remove();
+        const assignedIdForModal = (voucher.assignedTo && typeof voucher.assignedTo === 'object') ? (voucher.assignedTo._id || voucher.assignedTo) : voucher.assignedTo;
         const modalHTML = `
       <div id="assignUserModal" class="modal fade" tabindex="-1" aria-labelledby="assignUserModalLabel">
         <div class="modal-dialog">
@@ -7601,11 +8319,11 @@ class AdminService {
               </div>
               <div class="modal-body">
                 <label for="staffDropdown" class="form-label">Select Staff Member:</label>
-                <select id="staffDropdown" name="assignedTo" class="form-select" required>
-                  ${staffList.map(staff => `
-                      <option value="${staff._id}" ${voucher.assignedTo === staff._id ? 'selected' : ''}>${staff.name} (${staff.email})</option>
-                  `).join('')}
-                </select>
+                                <select id="staffDropdown" name="assignedTo" class="form-select" required>
+                                    ${staffList.map(staff => `
+                                            <option value="${staff._id}" ${assignedIdForModal === staff._id ? 'selected' : ''}>${staff.name} (${staff.email})</option>
+                                    `).join('')}
+                                </select>
               </div>
               <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -7694,7 +8412,8 @@ class AdminService {
                 </thead>
                 <tbody>
                     ${vouchers.map(voucher => {
-            const assignedUser = users.find(u => u._id === voucher.assignedTo);
+            const assignedId = (voucher.assignedTo && typeof voucher.assignedTo === 'object') ? (voucher.assignedTo._id || voucher.assignedTo) : voucher.assignedTo;
+            const assignedUser = users.find(u => u._id === assignedId);
             const userName = assignedUser ? assignedUser.name : 'Unassigned';
             const userRole = assignedUser ? assignedUser.role : 'none';
 
@@ -7705,9 +8424,9 @@ class AdminService {
                             </td>
                             <td>${voucher.type || 'Discount'}</td>
                             <td>
-                                ${voucher.discountType === 'percentage'
-                    ? `${voucher.value}%`
-                    : Utils.formatCurrency(voucher.value)}
+                                ${voucher.type === 'percentage'
+                    ? `${voucher.discount}%`
+                    : Utils.formatCurrency(voucher.discount)}
                             </td>
                             <td>
                                 ${assignedUser ? `
@@ -7732,7 +8451,7 @@ class AdminService {
                                     <button class="btn btn-outline-primary" onclick="AdminService.editVoucher('${voucher._id}')">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button class="btn btn-outline-success" onclick="AdminService.assignVoucher('${voucher._id}')">
+                                    <button class="btn btn-outline-success" onclick="AdminService.showAssignUserModalById('${voucher._id}')">
                                         <i class="fas fa-user-plus"></i>
                                     </button>
                                     ${voucher.isActive === false
@@ -8978,7 +9697,7 @@ class AdminService {
                                     weight: '500'
                                 },
                                 color: 'rgba(0, 0, 0, 0.7)',
-                                stepSize: 1
+                                stepSize: 3
                             }
                         }
                     }
@@ -9100,193 +9819,182 @@ class AdminService {
         });
     }
 
-    static populateOrdersTable(table, orders) {
+    static populateOrdersTable(table, orders, pageNum = 1) {
         const tbody = table.querySelector('tbody');
         if (!tbody) {
-            console.warn('❌ No tbody found in orders table');
+            console.warn('❌ No tbody found in admin orders table');
             return;
         }
 
+        const rowsPerPage = 10;
         if (!orders || orders.length === 0) {
-            tbody.innerHTML = `
-            <tr>
-                <td colspan="8" class="text-center text-muted py-4">
-                    <i class="fas fa-shopping-cart fa-2x mb-2 d-block"></i>
-                    No orders found
-                </td>
-            </tr>
-        `;
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No orders found</td></tr>';
             return;
         }
 
-        tbody.innerHTML = orders.map(order => {
-            const orderId = order._id ? order._id.toString().slice(-8) : 'N/A';
-            const userName = order.user?.name || 'Unknown User';
-            const itemCount = order.items ? order.items.length : 0;
-            const total = order.finalTotal || order.total || 0;
-            const status = order.status || 'pending';
-            const date = order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A';
+        const totalPages = Math.ceil(orders.length / rowsPerPage);
+        const startIdx = (pageNum - 1) * rowsPerPage;
+        const paginated = orders.slice(startIdx, startIdx + rowsPerPage);
 
-            // FIX: Use processedBy instead of assignedStaff for orders
-            const staffName = order.processedBy?.name || order.assignedStaff?.name || 'Not assigned';
-            const staffId = order.processedBy?._id || order.assignedStaff?._id || '';
-
-            return `
+        tbody.innerHTML = paginated.map(order => `
             <tr>
-                <td>${date}</td>
-                <td><strong>#${orderId}</strong></td>
-                <td>${this.escapeHtml(userName)}</td>
-                <td>${itemCount} item${itemCount !== 1 ? 's' : ''}</td>
-                <td>${this.escapeHtml(staffName)}</td>
-                <td><strong>${Utils.formatCurrency(total)}</strong></td>
+                <td>${new Date(order.createdAt).toLocaleDateString()}</td>
+                <td><strong>#${order._id.toString().slice(-6)}</strong></td>
+                <td>${AdminService.escapeHtml(order.user?.name || 'Unknown')}</td>
+                <td>${order.items?.length || 0} items</td>
+                <td>${AdminService.escapeHtml(order.processedBy?.name || 'Not assigned')}</td>
+                <td><strong>${Utils.formatCurrency(order.finalTotal || order.total || 0)}</strong></td>
+                <td><span class="badge bg-${Utils.getStatusColor(order.status)}">${order.status}</span></td>
                 <td>
-                    <span class="badge bg-${Utils.getStatusColor(status)}">
-                        ${status.charAt(0).toUpperCase() + status.slice(1)}
-                    </span>
-                </td>
-                <td>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-primary" 
-                                onclick="showAdminModal('order', '${order._id}', '${status}', '${staffId}')">
-                            <i class="fas fa-cog"></i> Manage
-                        </button>
-                        <button class="btn btn-outline-secondary" 
-                                onclick="ReceiptService.generateReceipt('order', '${order._id}')">
-                            <i class="fas fa-receipt"></i>
-                        </button>
-                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="ReceiptService.generateReceipt('order', '${order._id}')">
+                        <i class="fas fa-receipt"></i>
+                    </button>
                 </td>
             </tr>
-        `;
-        }).join('');
+        `).join('');
 
-        console.log(`✅ Populated orders table with ${orders.length} orders`);
+        // pagination footer
+        const tfoot = table.querySelector('tfoot') || document.createElement('tfoot');
+        if (!table.querySelector('tfoot')) table.appendChild(tfoot);
+        let paginationHTML = '<tr><td colspan="7" class="text-center"><nav><ul class="pagination pagination-sm justify-content-center mb-0">';
+        if (pageNum > 1) {
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="1">First</button></li>`;
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${pageNum-1}">«</button></li>`;
+        }
+        for (let i = 1; i <= totalPages; i++) {
+            paginationHTML += `<li class="page-item ${i===pageNum? 'active':''}"><button class="page-link" data-page="${i}">${i}</button></li>`;
+        }
+        if (pageNum < totalPages) {
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${pageNum+1}">»</button></li>`;
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${totalPages}">Last</button></li>`;
+        }
+        paginationHTML += '</ul></nav></td></tr>';
+        tfoot.innerHTML = paginationHTML;
+
+        // wire up buttons to call AdminService directly
+        tfoot.querySelectorAll('button[data-page]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const newPage = parseInt(e.target.dataset.page);
+                AdminService.populateOrdersTable(table, orders, newPage);
+            });
+        });
     }
 
-    static populateBookingsTable(table, bookings) {
+    static populateBookingsTable(table, bookings, pageNum = 1) {
         const tbody = table.querySelector('tbody');
         if (!tbody) {
-            console.warn('❌ No tbody found in bookings table');
+            console.warn('❌ No tbody found in admin bookings table');
             return;
         }
 
+        const rowsPerPage = 10;
         if (!bookings || bookings.length === 0) {
-            tbody.innerHTML = `
-            <tr>
-                <td colspan="9" class="text-center text-muted py-4">
-                    <i class="fas fa-calendar fa-2x mb-2 d-block"></i>
-                    No bookings found
-                </td>
-            </tr>
-        `;
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No bookings found</td></tr>';
             return;
         }
 
-        tbody.innerHTML = bookings.map(booking => {
-            const bookingId = booking._id ? booking._id.toString().slice(-8) : 'N/A';
-            const bookingDate = booking.date ? new Date(booking.date).toLocaleDateString() : 'N/A';
-            const createdAt = booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : 'N/A';
-            const userName = booking.user?.name || 'Customer';
-            const serviceName = booking.service?.name || 'Service';
+        const totalPages = Math.ceil(bookings.length / rowsPerPage);
+        const startIdx = (pageNum - 1) * rowsPerPage;
+        const paginated = bookings.slice(startIdx, startIdx + rowsPerPage);
 
-            // FIX: Use staff field (not assignedStaff)
-            const staffName = booking.staff?.name || 'Not assigned';
-            const staffId = booking.staff?._id || '';
-
-            const status = booking.status || 'pending';
-
-            return `
+        tbody.innerHTML = paginated.map(booking => `
             <tr>
-                <td>${createdAt}</td>
-                <td>#${bookingId}</td>
-                <td>${this.escapeHtml(userName)}</td>
-                <td>${this.escapeHtml(serviceName)}</td>
-                <td>${this.escapeHtml(staffName)}</td>
-                <td>${bookingDate} at ${booking.time || 'N/A'}</td>
+                <td>${new Date(booking.createdAt).toLocaleDateString()}</td>
+                <td><strong>#${booking._id.toString().slice(-6)}</strong></td>
+                <td>${AdminService.escapeHtml(booking.user?.name || 'Unknown')}</td>
+                <td>${AdminService.escapeHtml(booking.service?.name || 'Service')}</td>
+                <td>${AdminService.escapeHtml(booking.staff?.name || 'Not assigned')}</td>
+                <td>${new Date(booking.date).toLocaleDateString()} at ${booking.time || 'N/A'}</td>
+                <td><strong>${Utils.formatCurrency(booking.service?.price || booking.price || 0)}</strong></td>
+                <td><span class="badge bg-${Utils.getStatusColor(booking.status)}">${booking.status}</span></td>
                 <td>
-                    <span class="badge bg-${Utils.getStatusColor(status)}">
-                        ${status.charAt(0).toUpperCase() + status.slice(1)}
-                    </span>
-                </td>
-                <td>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-primary" 
-                                onclick="showAdminModal('booking', '${booking._id}', '${status}', '${staffId}')">
-                            <i class="fas fa-cog"></i> Manage
-                        </button>
-                        <button class="btn btn-outline-secondary" 
-                                onclick="ReceiptService.generateReceipt('booking', '${booking._id}')">
-                            <i class="fas fa-receipt"></i>
-                        </button>
-                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="ReceiptService.generateReceipt('booking', '${booking._id}')">
+                        <i class="fas fa-receipt"></i>
+                    </button>
                 </td>
             </tr>
-        `;
-        }).join('');
+        `).join('');
 
-        console.log(`✅ Populated bookings table with ${bookings.length} bookings`);
+        const tfoot = table.querySelector('tfoot') || document.createElement('tfoot');
+        if (!table.querySelector('tfoot')) table.appendChild(tfoot);
+        let paginationHTML = '<tr><td colspan="7" class="text-center"><nav><ul class="pagination pagination-sm justify-content-center mb-0">';
+        if (pageNum > 1) {
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="1">First</button></li>`;
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${pageNum-1}">«</button></li>`;
+        }
+        for (let i = 1; i <= totalPages; i++) {
+            paginationHTML += `<li class="page-item ${i===pageNum? 'active':''}"><button class="page-link" data-page="${i}">${i}</button></li>`;
+        }
+        if (pageNum < totalPages) {
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${pageNum+1}">»</button></li>`;
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${totalPages}">Last</button></li>`;
+        }
+        paginationHTML += '</ul></nav></td></tr>';
+        tfoot.innerHTML = paginationHTML;
+
+        tfoot.querySelectorAll('button[data-page]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const newPage = parseInt(e.target.dataset.page);
+                AdminService.populateBookingsTable(table, bookings, newPage);
+            });
+        });
     }
 
-    static populateGiftsTable(table, giftOrders) {
+    static populateGiftsTable(table, giftOrders, pageNum = 1) {
         const tbody = table.querySelector('tbody');
         if (!tbody) {
-            console.warn('❌ No tbody found in gifts table');
+            console.warn('❌ No tbody found in admin gifts table');
             return;
         }
 
+        const rowsPerPage = 10;
         if (!giftOrders || giftOrders.length === 0) {
-            tbody.innerHTML = `
-            <tr>
-                <td colspan="10" class="text-center text-muted py-4">
-                    <i class="fas fa-gift fa-2x mb-2 d-block"></i>
-                    No gift orders found
-                </td>
-            </tr>
-        `;
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No gift orders found</td></tr>';
             return;
         }
 
-        tbody.innerHTML = giftOrders.map(gift => {
-            const giftId = gift._id ? gift._id.toString().slice(-8) : 'N/A';
-            const createdAt = gift.createdAt ? new Date(gift.createdAt).toLocaleDateString() : 'N/A';
-            const deliveryDate = gift.deliveryDate ? new Date(gift.deliveryDate).toLocaleDateString() : 'N/A';
-            const userName = gift.user?.name || 'Customer';
-            const recipientName = gift.recipientName || 'N/A';
-            const packageName = gift.giftPackage?.name || 'Gift Package';
-            const staffName = gift.assignedStaff?.name || 'Not assigned';
-            const status = gift.status || 'pending';
+        const totalPages = Math.ceil(giftOrders.length / rowsPerPage);
+        const startIdx = (pageNum - 1) * rowsPerPage;
+        const paginated = giftOrders.slice(startIdx, startIdx + rowsPerPage);
 
-            return `
+        tbody.innerHTML = paginated.map(gift => `
             <tr>
-                <td>${createdAt}</td>
-                <td>#${giftId}</td>
-                <td>${this.escapeHtml(userName)}</td>
-                <td>${this.escapeHtml(recipientName)}</td>
-                <td>${this.escapeHtml(packageName)}</td>
-                <td>${this.escapeHtml(staffName)}</td>
-                <td>${deliveryDate}</td>
-                <td>
-                    <span class="badge bg-${Utils.getStatusColor(status)}">
-                        ${status.charAt(0).toUpperCase() + status.slice(1)}
-                    </span>
-                </td>
-                <td>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-primary" 
-                                onclick="showAdminModal('gift', '${gift._id}', '${status}', '${gift.assignedStaff?._id || ''}')">
-                            <i class="fas fa-cog"></i> Manage
-                        </button>
-                        <button class="btn btn-outline-secondary" 
-                                onclick="ReceiptService.generateReceipt('gift', '${gift._id}')">
-                            <i class="fas fa-receipt"></i>
-                        </button>
-                    </div>
-                </td>
+                <td>${new Date(gift.createdAt).toLocaleDateString()}</td>
+                <td><strong>#${gift._id.toString().slice(-6)}</strong></td>
+                <td>${AdminService.escapeHtml(gift.user?.name || 'Unknown')}</td>
+                <td>${AdminService.escapeHtml(gift.recipientName)}</td>
+                <td>${AdminService.escapeHtml(gift.giftPackage?.name || 'Gift Package')}</td>
+                <td>${AdminService.escapeHtml(gift.assignedStaff?.name || 'Not assigned')}</td>
+                <td>${gift.deliveryDate ? new Date(gift.deliveryDate).toLocaleDateString() : 'Not scheduled'}</td>
+                <td><strong>${Utils.formatCurrency(gift.price || gift.total || gift.giftPackage?.basePrice || 0)}</strong></td>
+                <td><span class="badge bg-${Utils.getStatusColor(gift.status)}">${gift.status}</span></td>
+                <td><button class="btn btn-sm btn-outline-primary" onclick="ReceiptService.generateReceipt('gift', '${gift._id}')"><i class="fas fa-receipt"></i></button></td>
             </tr>
-        `;
-        }).join('');
+        `).join('');
 
-        console.log(`✅ Populated gifts table with ${giftOrders.length} gift orders`);
+        const tfoot = table.querySelector('tfoot') || document.createElement('tfoot');
+        if (!table.querySelector('tfoot')) table.appendChild(tfoot);
+        let paginationHTML = '<tr><td colspan="8" class="text-center"><nav><ul class="pagination pagination-sm justify-content-center mb-0">';
+        if (pageNum > 1) {
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="1">First</button></li>`;
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${pageNum-1}">«</button></li>`;
+        }
+        for (let i = 1; i <= totalPages; i++) {
+            paginationHTML += `<li class="page-item ${i===pageNum? 'active':''}"><button class="page-link" data-page="${i}">${i}</button></li>`;
+        }
+        if (pageNum < totalPages) {
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${pageNum+1}">»</button></li>`;
+            paginationHTML += `<li class="page-item"><button class="page-link" data-page="${totalPages}">Last</button></li>`;
+        }
+        paginationHTML += '</ul></nav></td></tr>';
+        tfoot.innerHTML = paginationHTML;
+
+        tfoot.querySelectorAll('button[data-page]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const newPage = parseInt(e.target.dataset.page);
+                AdminService.populateGiftsTable(table, giftOrders, newPage);
+            });
+        });
     }
 
     static showEmptyStates() {
@@ -9294,9 +10002,10 @@ class AdminService {
         tables.forEach(table => {
             const tbody = table.querySelector('tbody');
             if (tbody) {
+                const thCount = table.querySelectorAll('th').length || 1;
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="10" class="text-center text-muted py-4">
+                        <td colspan="${thCount}" class="text-center text-muted py-4">
                             <i class="fas fa-exclamation-triangle me-2"></i>
                             Failed to load data
                         </td>
@@ -12458,7 +13167,7 @@ function createQuickBooking() {
     if (modal) modal.hide();
 
     // Navigate to services and pre-fill user info
-    UIHelper.showSection('services');
+    UIHelper.showSection('bookings');
     // You can add logic here to pre-fill the booking form with user info
 }
 
@@ -12488,7 +13197,7 @@ function createGiftForUser() {
     const modal = bootstrap.Modal.getInstance(document.getElementById('userActivityModal'));
     if (modal) modal.hide();
 
-    UIHelper.showSection('giftPackages');
+    UIHelper.showSection('gifts');
     // You can add logic here to pre-fill gift recipient info
 }
 

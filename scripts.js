@@ -583,7 +583,7 @@ class ApiService {
             endpoint.includes('/email/'); // Add email endpoints
 
         // Increase timeout significantly for Render's cold starts
-        const timeoutDuration = isPaymentEndpoint ? 180000 : 15000; // 180s for payments/emails, 15s for others
+        const timeoutDuration = isPaymentEndpoint ? 45000 : 15000; // 45s for payments/emails, 15s for others
         const timeoutId = setTimeout(() => {
             if (DEBUG) console.log(`⏰ Timeout for ${endpoint} after ${timeoutDuration}ms`);
             controller.abort();
